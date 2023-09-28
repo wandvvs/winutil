@@ -1,0 +1,750 @@
+// Make sure that multibyte encoding support is enabled in your visual studio project properties
+#include <Windows.h>
+#include <tlhelp32.h>
+#include <fstream>
+#include <iostream>
+#include <winternl.h>
+#include <string>
+#include <ShlObj.h>
+#include <Shlwapi.h>
+#include <Shellapi.h>
+#include <thread>
+#include <chrono>
+#include <vector>
+#include <locale>
+#include <iomanip>
+#include <stdexcept>
+#include <string>
+
+#pragma comment(lib, "Shlwapi.lib")
+
+/*
+	This is enum "MessageBoxType" used in method void WinUtil::callMessageBox(const char* text, const char* title, MessageBoxType type)
+	It is used for type of Windows Message Box (icon, sound and etc.) Try it out and choose what kind of message box types
+	Do u need in your specific situation.
+*/
+
+enum MessageBoxType {
+	INFORMATION,
+	QUESTION,
+	WARNING,
+	MISTAKE
+};
+/*
+	I decided to make my own unique class for exceptions, they are used everywhere to catch errors in each method.
+
+	Usage example:
+
+	try {
+		WinUtil::shutdown(FALSE);
+	}
+	catch(WinException ex) {
+		std::cout << ex.what() << std::endl;
+	}
+
+	I advise you to cover any method with such a wrapper
+*/
+class WinException : public std::runtime_error {
+public:
+	WinException(const std::string& message) : std::runtime_error(message) {
+		errorMsg = message + "\nError code: " + std::to_string(GetLastError());
+	}
+
+	const char* what() const noexcept override {
+		return errorMsg.c_str();
+	}
+private:
+	std::string errorMsg;
+};
+
+/*
+	General class of library. He doesn`t have any constructors or destructors, just create instance of WinUtil and use methods which u want.
+*/
+
+class WinUtil {
+public:
+
+	/*
+
+		The method the essence of which is to turn off the system or restart it by BOOL rebootAfterShutdown argument.
+		Example: shutdown(TRUE) --- It will be restart ur system.
+
+	*/
+
+	static BOOL shutdown(BOOL rebootAfterShutdown) {
+		HANDLE hToken;
+		TOKEN_PRIVILEGES tkp;
+
+		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
+			throw WinException("Failed to open process token");
+		}
+
+		if (!LookupPrivilegeValue(NULL, SE_SHUTDOWN_NAME, &tkp.Privileges[0].Luid)) {
+			CloseHandle(hToken);
+			throw WinException("Failed to lookup privilege value");
+		}
+
+		tkp.PrivilegeCount = 1;
+		tkp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+		if (!AdjustTokenPrivileges(hToken, FALSE, &tkp, 0, (PTOKEN_PRIVILEGES)NULL, 0)) {
+			CloseHandle(hToken);
+			throw WinException("Failed to adjust token privileges");
+		}
+
+		if (!InitiateSystemShutdownA(NULL, NULL, 0, TRUE, rebootAfterShutdown)) {
+			CloseHandle(hToken);
+			throw WinException("Failed to initiate system shutdown");
+		}
+
+		tkp.Privileges[0].Attributes = 0;
+
+		if (!AdjustTokenPrivileges(hToken, FALSE, &tkp, 0, (PTOKEN_PRIVILEGES)NULL, 0)) {
+			CloseHandle(hToken);
+			throw WinException("Failed to adjust token privileges");
+		}
+
+		CloseHandle(hToken);
+
+		return TRUE;
+	}
+
+	/*
+
+		The method which help to get PID by process name.
+		You can view the PID of any process in the task manager yourself, this method will do it only by the process name.
+		Example: getProcessId("csgo.exe");   >_<   getProcessId(chrome.exe);
+
+	*/
+
+	static DWORD getProcessId(const char* processName) {
+		DWORD pid = 0;
+		HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (snapshot != INVALID_HANDLE_VALUE) {
+			PROCESSENTRY32 processEntry;
+			processEntry.dwSize = sizeof(PROCESSENTRY32);
+			if (Process32First(snapshot, &processEntry)) {
+				do {
+					if (strcmp(processEntry.szExeFile, processName) == 0) {
+						pid = processEntry.th32ProcessID;
+						break;
+					}
+				} while (Process32Next(snapshot, &processEntry));
+			}
+		}
+
+		if (pid == 0) {
+			throw WinException("Process " + std::string(processName) + " not found");
+		}
+		return pid;
+	}
+
+	/*
+
+		The method which completes process by him name.
+		Example: killProcess("chrome.exe");
+
+	*/
+
+	static INT killProcess(const char* processName) {
+		DWORD pid = getProcessId(processName);
+
+		if (pid == 0) {
+			throw WinException("Process " + std::string(processName) + " not found");
+		}
+		else {
+			HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
+			if (handle != NULL) {
+				TerminateProcess(handle, 0);
+				return 1;
+				CloseHandle(handle);
+			}
+			else {
+				throw WinException("Failed to open process");
+
+				return -1;
+			}
+		}
+	}
+
+	/*
+
+		The method which help you to get handle to process.
+		Example:
+		HANDLE* h;         WinUtil::getProcess(h, 5154);
+
+	*/
+
+	static INT getProcess(HANDLE* handleToProcess, DWORD pid) {
+		*handleToProcess = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
+
+		if (*handleToProcess == NULL) {
+			throw WinException("Failed to get process with " + std::string(std::to_string(pid)) + " pid");
+
+			return -1;
+		}
+		else {
+			return 1;
+		}
+	}
+
+	/*
+
+		The method which help u with opening file by path;
+		Example: WinUtil::openFile("C:\\1.exe");
+
+	*/
+
+	static BOOL openFile(const char* path) {
+		HINSTANCE result = ShellExecute(NULL, "open", path, NULL, NULL, SW_SHOWNORMAL);
+
+		if ((intptr_t)result <= 32) {
+			throw WinException("Failed to open file by path");
+
+			return false;
+		}
+
+		return true;
+	}
+
+	/*
+
+		The method which help u creating directories.
+		Example: WinUtil::createDirectory("C:\\folder");
+
+	*/
+
+	static BOOL createDirectory(const char* path) {
+		if (CreateDirectory(path, NULL) == FALSE) {
+			throw WinException("Failed to create directory");
+			return FALSE;
+		}
+
+		return TRUE;
+	}
+
+	/*
+
+		The method which help u with creating files.
+		Example: WinUtil::createFile("C:\\vir.exe");
+
+	*/
+
+	static BOOL createFile(const char* path) {
+		HANDLE hFile = CreateFileA(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if (hFile == INVALID_HANDLE_VALUE) {
+			throw WinException("Failed to create file by path");
+
+			return false;
+		}
+
+		CloseHandle(hFile);
+		return true;
+	}
+
+	/*
+
+		The method which help u with moves file (also its apply rename file);
+		Example: WinUtil::moveFiles("C:\\1.txt", "C:\\2.txt"); --- It will be move file 1.txt to 2.txt
+
+	*/
+
+	static BOOL moveFiles(const char* path, const char* newPath) {
+		if (MoveFile(path, newPath) == FALSE) {
+			throw WinException("Failed to move file by path");
+
+			return false;
+		}
+
+		return true;
+	}
+
+	/*
+
+		The method which help u with deleting files by path.
+		Example: WinUtil::deleteFile("C:\\empty.txt");
+
+	*/
+
+	static BOOL deleteFile(const char* path) {
+		if (DeleteFile(path) == FALSE) {
+			throw WinException("Failed to delete file");
+
+			return false;
+		}
+
+		return true;
+	}
+
+	/*
+
+		The method which help u with deleting directories by path.
+		Example: WinUtil::deleteFile("C:\\someFolder");
+
+	*/
+
+	static BOOL deleteDirectory(const char* path) {
+		if (RemoveDirectory(path) == FALSE) {
+			throw WinException("Failed to delete directory");
+
+			return false;
+		}
+
+		return true;
+	}
+
+	/*
+
+		Supportive callback for method WinUtil::gellAllRuntimeWindows();
+		Nevermind.
+
+	*/
+
+	static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+		SetConsoleOutputCP(CP_UTF8);
+		char buffer[256];
+		if (IsWindowVisible(hwnd) && GetWindowTextA(hwnd, buffer, sizeof(buffer)) > 0) {
+			DWORD pid;
+			GetWindowThreadProcessId(hwnd, &pid);
+			std::cout << "Window Handle: " << hwnd << ", Title: " << buffer << ", PID: " << pid << std::endl;
+		}
+		return TRUE;
+	}
+	/*
+
+		The method which outputs in console all runtime windows and their PID now.
+		Most likely it will be more useful if it saves this information to some file, you can try.
+
+	*/
+	static void getAllRuntimeWindows() {
+		EnumWindows(EnumWindowsProc, 0);
+	}
+	/*
+
+		The method which call BSOD. <Do you really need this?>
+
+	*/
+	typedef NTSTATUS(NTAPI* pdef_NtRaiseHardError)(NTSTATUS ErrorStatus, ULONG NumberOfParameters, ULONG UnicodeStringParameterMask OPTIONAL, PULONG_PTR Parameters, ULONG ResponseOption, PULONG Response);
+	typedef NTSTATUS(NTAPI* pdef_RtlAdjustPrivilege)(ULONG Privilege, BOOLEAN Enable, BOOLEAN CurrentThread, PBOOLEAN Enabled);
+
+	static BOOL getBSOD() {
+		BOOLEAN bEnabled;
+		ULONG uResp;
+		LPVOID lpFuncAddress = GetProcAddress(LoadLibraryA("ntdll.dll"), "RtlAdjustPrivilege");
+		LPVOID lpFuncAddress2 = GetProcAddress(GetModuleHandle("ntdll.dll"), "NtRaiseHardError");
+		pdef_RtlAdjustPrivilege NtCall = (pdef_RtlAdjustPrivilege)lpFuncAddress;
+		pdef_NtRaiseHardError NtCall2 = (pdef_NtRaiseHardError)lpFuncAddress2;
+		NTSTATUS NtRet = NtCall(19, TRUE, FALSE, &bEnabled);
+		NtCall2(STATUS_FLOAT_MULTIPLE_FAULTS, 0, 0, 0, 6, &uResp);
+		return true;
+	}
+	/*
+
+		The method which get process id, process name, pid (process information) and etc. by process name.
+		x2 Most likely it will be more useful if it saves this information to some file, you can try.
+
+	*/
+	static void getProcessInfo(const char* processName) {
+		DWORD pid = getProcessId(processName);
+
+		if (pid == 0) {
+			throw WinException("Failed to get PID of process name");
+			return;
+		}
+
+		PROCESSENTRY32 processEntry;
+		processEntry.dwSize = sizeof(PROCESSENTRY32);
+
+		HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+		if (snapshot == INVALID_HANDLE_VALUE) {
+			throw WinException("CreateToolhelp32Snapshot failed");
+			return;
+		}
+
+		if (Process32First(snapshot, &processEntry)) {
+			do {
+				if (processEntry.th32ProcessID == pid) {
+					std::cout << "Process ID: " << processEntry.th32ProcessID << std::endl;
+					std::wcout << "Process Name: " << processEntry.szExeFile << std::endl;
+					std::cout << "PID: " << processEntry.th32ParentProcessID << std::endl;
+					std::cout << "Number of Threads: " << processEntry.cntThreads << std::endl;
+					std::cout << "Base Priority: " << processEntry.pcPriClassBase << std::endl;
+					std::cout << "Execution Flags: " << processEntry.dwFlags << std::endl;
+					std::cout << "Module ID: " << processEntry.th32ModuleID << std::endl;
+					std::cout << "Delta Time: " << processEntry.cntUsage << std::endl;
+				}
+			} while (Process32Next(snapshot, &processEntry));
+		}
+	}
+	/*
+
+		The method which get meta data from file.
+		x3 Most likely it will be more useful if it saves this information to some file, you can try.
+
+	*/
+	static void getFileInfo(const char* path) {
+		WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
+
+		if (GetFileAttributesEx(path, GetFileExInfoStandard, &fileAttributes)) {
+			ULARGE_INTEGER fileSize;
+			fileSize.LowPart = fileAttributes.nFileSizeLow;
+			fileSize.HighPart = fileAttributes.nFileSizeHigh;
+
+			FILETIME creationTime = fileAttributes.ftCreationTime;
+			FILETIME lastAccessTime = fileAttributes.ftLastAccessTime;
+			FILETIME lastWriteTime = fileAttributes.ftLastWriteTime;
+
+			SYSTEMTIME st;
+			FileTimeToSystemTime(&creationTime, &st);
+			std::wcout << L"File Size: " << fileSize.QuadPart << L" bytes" << std::endl;
+			std::wcout << L"Creation Time: " << st.wYear << L"-" << st.wMonth << L"-" << st.wDay << L" " << st.wHour << L":" << st.wMinute << L":" << st.wSecond << std::endl;
+
+			FileTimeToSystemTime(&lastAccessTime, &st);
+			std::wcout << L"Last Access Time: " << st.wYear << L"-" << st.wMonth << L"-" << st.wDay << L" " << st.wHour << L":" << st.wMinute << L":" << st.wSecond << std::endl;
+
+			FileTimeToSystemTime(&lastWriteTime, &st);
+			std::wcout << L"Last Write Time: " << st.wYear << L"-" << st.wMonth << L"-" << st.wDay << L" " << st.wHour << L":" << st.wMinute << L":" << st.wSecond << std::endl;
+		}
+		else {
+			throw WinException("GetFileAttributesEx failed");
+		}
+	}
+	/*
+
+		The method which help u to will know if your program opened as admin mode.
+
+	*/
+	static BOOL isUserAdmin() {
+		bool isElevated = false;
+		HANDLE token;
+		TOKEN_ELEVATION elev;
+		DWORD size;
+		if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+			if (GetTokenInformation(token, TokenElevation, &elev, sizeof(elev), &size)) {
+				isElevated = elev.TokenIsElevated;
+			}
+		}
+
+		if (token) {
+			CloseHandle(token);
+			token = NULL;
+		}
+
+		return isElevated;
+	}
+	/*
+
+		The method which help u to turn of windows defender forever.
+
+	*/
+	static INT turnOffWindowsDefender() {
+		HKEY key;
+		HKEY new_key;
+		DWORD disable = 1;
+
+		if (!isUserAdmin()) {
+			throw WinException("Run it as admin");
+
+			return -1;
+		}
+
+		LONG res = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Policies\\Microsoft\\Windows Defender", 0, KEY_ALL_ACCESS, &key);
+		if (res == ERROR_SUCCESS) {
+			RegSetValueEx(key, "DisableAntiSpyware", 0, REG_DWORD, (const BYTE*)&disable, sizeof(disable));
+			RegCreateKeyEx(key, "Real-Time Protection", 0, 0, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &new_key, 0);
+			RegSetValueEx(new_key, "DisableRealtimeMonitoring", 0, REG_DWORD, (const BYTE*)&disable, sizeof(disable));
+			RegSetValueEx(new_key, "DisableBehaviorMonitoring", 0, REG_DWORD, (const BYTE*)&disable, sizeof(disable));
+			RegSetValueEx(new_key, "DisableScanOnRealtimeEnable", 0, REG_DWORD, (const BYTE*)&disable, sizeof(disable));
+			RegSetValueEx(new_key, "DisableOnAccessProtection", 0, REG_DWORD, (const BYTE*)&disable, sizeof(disable));
+			RegSetValueEx(new_key, "DisableIOAVProtection", 0, REG_DWORD, (const BYTE*)&disable, sizeof(disable));
+
+			RegCloseKey(key);
+			RegCloseKey(new_key);
+		}
+
+		return 1;
+	}
+	/*
+
+		The method which help u to turn on windows defender back.
+
+	*/
+	static INT turnOnWindowsDefender() {
+		HKEY key;
+		HKEY new_key;
+		DWORD disable = 0;
+
+		if (!isUserAdmin()) {
+			throw WinException("Run it as admin");
+			return -1;
+		}
+
+		LONG res = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Policies\\Microsoft\\Windows Defender", 0, KEY_ALL_ACCESS, &key);
+		if (res == ERROR_SUCCESS) {
+			RegSetValueEx(key, "DisableAntiSpyware", 0, REG_DWORD, (const BYTE*)&disable, sizeof(disable));
+
+			RegDeleteKey(key, "Real-Time Protection");
+
+			RegCloseKey(key);
+		}
+
+		return 1;
+	}
+	/*
+
+		The method which help u open some page of website how many times do u want and also with delay in seconds.
+		Example: WinUtil::openBrowserPageByURL("https://google.com", 1, 1);
+
+	*/
+	static BOOL openBrowserPageByURL(const char* URL, UINT howManyTimes, UINT delayInSeconds) {
+		UINT times = 0;
+
+		while (times != howManyTimes) {
+			ShellExecuteA(0, 0, URL, 0, 0, SW_SHOW);
+			times++;
+			std::this_thread::sleep_for(std::chrono::seconds(delayInSeconds));
+		}
+
+		return true;
+	}
+	/*
+
+		The method which help u get information from ipconfig of system
+
+	*/
+	static void getNetworkInformation() {
+		system("C:\\Windows\\System32\\ipconfig");
+	}
+	/*
+
+		The method which allows to work with windows command line.
+		Example: WinUtil::runSystemCommand("echo Hello World!");
+
+	*/
+	static BOOL runSystemCommand(const char* command) {
+		if (!isUserAdmin()) {
+			return false;
+		}
+		INT exitCode = system(command);
+
+		if (exitCode == 0) {
+			return true;
+		}
+		else {
+			throw WinException("Error while running system command (Probably this command not found)");
+			return false;
+		}
+	}
+	/*
+
+		The method which allows you to call up message box.
+		Example: WinUtil::callMessageBox("Some info", "Title of messageBox", // WARNING or MISTAKE or QUESTION or INFORMATION);
+		WinUtil::callMessageBox("My program", "Program", INFORMATION);
+
+	*/
+	static void callMessageBox(const char* text, const char* title, MessageBoxType type) {
+		UINT messageType = 0;
+
+		switch (type)
+		{
+		case INFORMATION:
+			messageType = MB_OK | MB_ICONINFORMATION;
+			break;
+		case QUESTION:
+			messageType = MB_YESNO | MB_ICONQUESTION;
+			break;
+		case WARNING:
+			messageType = MB_OK | MB_ICONWARNING;
+			break;
+		case MISTAKE:
+			messageType = MB_OK | MB_ICONERROR;
+			break;
+		default:
+			messageType = MB_OK;
+			break;
+		}
+
+		MessageBox(NULL, text, title, messageType);
+	}
+	/*
+
+		The method which allows you to get file attributes (meta data) you also can save it to some file or outputs to console.
+
+		Example: WinUtil::fetchFileAttributes("C:\\file.exe", TRUE, "D:\\fileInfo.txt");
+
+		If u dont want save if to file just set saveFileAttributesToTxtFile argument to FALSE and set NULL to pathToSave argument.
+
+
+	*/
+	BOOL fetchFileAttributes(const char* path, BOOL saveFileAttributesToTxtFile, const char* pathToSave) {
+		WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
+
+		if (GetFileAttributesEx(path, GetFileExInfoStandard, &fileAttributes)) {
+			FILETIME creationTime = fileAttributes.ftCreationTime;
+			FILETIME lastAccessTime = fileAttributes.ftLastAccessTime;
+			FILETIME lastWriteTime = fileAttributes.ftLastWriteTime;
+			BOOL isHidden = NULL;
+			BOOL isReadOnly = NULL;
+			ULONGLONG fileSize = ((ULONG)fileAttributes.nFileSizeHigh << 32) | fileAttributes.nFileSizeLow;
+
+			SYSTEMTIME creationSysTime, lastAccessSysTime, lastWriteSysTime;
+			FileTimeToSystemTime(&creationTime, &creationSysTime);
+			FileTimeToSystemTime(&lastAccessTime, &lastAccessSysTime);
+			FileTimeToSystemTime(&lastWriteTime, &lastWriteSysTime);
+
+			char creationTimeStr[20], lastAccessTimeStr[20], lastWriteTimeStr[20];
+			snprintf(creationTimeStr, sizeof(creationTimeStr), "%02d.%02d.%04d %02d:%02d",
+				creationSysTime.wDay, creationSysTime.wMonth, creationSysTime.wYear,
+				creationSysTime.wHour, creationSysTime.wMinute);
+			snprintf(lastAccessTimeStr, sizeof(lastAccessTimeStr), "%02d.%02d.%04d %02d:%02d",
+				lastAccessSysTime.wDay, lastAccessSysTime.wMonth, lastAccessSysTime.wYear,
+				lastAccessSysTime.wHour, lastAccessSysTime.wMinute);
+			snprintf(lastWriteTimeStr, sizeof(lastWriteTimeStr), "%02d.%02d.%04d %02d:%02d",
+				lastWriteSysTime.wDay, lastWriteSysTime.wMonth, lastWriteSysTime.wYear,
+				lastWriteSysTime.wHour, lastWriteSysTime.wMinute);
+
+			DWORD fileAttributes = GetFileAttributes(path);
+
+			isHidden = (fileAttributes & FILE_ATTRIBUTE_HIDDEN) ? TRUE : FALSE;
+			isReadOnly = (fileAttributes & FILE_ATTRIBUTE_READONLY) ? TRUE : FALSE;
+
+			if (saveFileAttributesToTxtFile == FALSE || pathToSave == NULL) {
+				std::cout << "Creation time: " << creationTimeStr << std::endl;
+				std::cout << "Last access time: " << lastAccessTimeStr << std::endl;
+				std::cout << "Last write time: " << lastWriteTimeStr << std::endl;
+				std::cout << "File size: " << fileSize << " bytes" << std::endl;
+				std::cout << "Is hidden: " << (isHidden ? "TRUE" : "FALSE") << std::endl;
+				std::cout << "Is read-only: " << (isReadOnly ? "TRUE" : "FALSE") << std::endl;
+				return true;
+			}
+
+			std::ofstream ofs(pathToSave, std::ofstream::app);
+
+			if (ofs.is_open()) {
+				ofs << "===============================================" << std::endl;
+				ofs << "===== " << path << "=====" << std::endl;
+				ofs << "Creation time: " << creationTimeStr << std::endl;
+				ofs << "Last access time: " << lastAccessTimeStr << std::endl;
+				ofs << "Last write time: " << lastWriteTimeStr << std::endl;
+				ofs << "File size: " << fileSize << " bytes" << std::endl;
+				ofs << "Is hidden: " << (isHidden ? "TRUE" : "FALSE") << std::endl;
+				ofs << "Is read-only: " << (isReadOnly ? "TRUE" : "FALSE") << std::endl;
+				ofs << "===============================================" << std::endl;
+				ofs.close();
+				return true;
+			}
+			else {
+				throw WinException("Failed to open file for save file attributes");
+
+				return false;
+			}
+		}
+		else {
+			throw WinException("Failed to fetch file attributes");
+
+			return false;
+		}
+	}
+	/*
+
+		The method which allows you to set hidden attribute to file. (Hide file from ordinary vision).\
+
+		Also u can unhide some file. Just set argument setHidden to FALSE;
+
+		Example: WinUtil::setFileHiddenAttribute("C:\\wannaHideIt.txt", TRUE); // It will be hide from ordinary vision
+
+	*/
+	static BOOL setFileHiddenAttribute(const char* path, BOOL setHidden) {
+		DWORD attributes = setHidden ? FILE_ATTRIBUTE_HIDDEN : FALSE;
+		return SetFileAttributes(path, attributes) != 0;
+	}
+	/*
+
+		The method which allows you to set read-only attribute to file.
+
+		Also u can unread-only some file. Just set argument setReadonly to FALSE;
+
+		Example: WinUtil::setFileHiddenAttribute("C:\\wannaReadOnlyIt.txt", TRUE); // It will be read-only yet
+
+	*/
+	static BOOL setFileReadonlyAttribute(const char* path, BOOL setReadonly) {
+		DWORD attributes = setReadonly ? FILE_ATTRIBUTE_READONLY : FALSE;
+		return SetFileAttributes(path, attributes) != 0;
+	}
+	/*
+
+		The method which allows you to remove pop-up windows with a warning when deleting a some file.
+
+	*/
+	BOOL suppressDeletePromts() {
+		const wchar_t* registryKeyPath = L"Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer";
+
+		HKEY hkey;
+		LONG result = RegCreateKeyExW(HKEY_CURRENT_USER, registryKeyPath, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hkey, NULL);
+
+		if (result != ERROR_SUCCESS) {
+			throw WinException("Failed to open/create reg key");
+
+			return FALSE;
+		}
+
+		DWORD valueData = 0;
+		result = RegSetValueExW(hkey, L"ConfirmFileDelete", 0, REG_DWORD, (const BYTE*)&valueData, sizeof(valueData));
+
+		if (result != ERROR_SUCCESS) {
+			throw WinException("Failed to change reg value");
+
+			RegCloseKey(hkey);
+			return FALSE;
+		}
+
+		RegCloseKey(hkey);
+
+		return TRUE;
+	}
+	/*
+
+		The method which allows you to block access to some website from browsers.
+		In order for everything to work correctly after the successful execution of the method,
+		restart your system and try to go to the URL that you passed to the method argument.
+
+		Example: WinUtil::addBlockedWebsite("vk.com");
+!!
+!!		WARNING - in order to regain access to certain sites that you have blocked, follow this path:
+!!		C:\Windows\System32\drivers\etc\hosts
+!!		Next, open the hosts file in the form .txt, then remove the URLs that you blocked,
+!!		they will be written in a column there, just erase them and save the file.
+!!
+	*/
+	static BOOL addBlockedWebsite(const char* nameAndDomen) {
+		std::ofstream ofs("C:\\Windows\\System32\\drivers\\etc\\hosts", std::ofstream::app);
+
+		if (ofs.is_open()) {
+			ofs << std::endl << "127.0.0.1    " << nameAndDomen << std::endl;
+
+			ofs.close();
+			return TRUE;
+		}
+		else {
+			throw WinException("Failed to open hosts file");
+
+			ofs.close();
+			return FALSE;
+		}
+	}
+	/*
+
+		The method which allows you to get unique key of your PC hardware.
+		You can use this key if you want to make a binding for your software.
+
+	*/
+	static std::string getHWID() {
+		HW_PROFILE_INFO hwProfileInfo;
+		if (GetCurrentHwProfile(&hwProfileInfo)) {
+			return hwProfileInfo.szHwProfileGuid;
+		}
+	}
+	BOOL disableWindowsAutoUpdater();
+};
