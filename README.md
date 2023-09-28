@@ -12,3 +12,8 @@ winutil.h - independent abstract library to build your applications with prepare
 ```
 4. To work with the library, you need to enable multibyte encoding in your project. Project properties -> Configuration properties -> General -> Under the "Character Set" dropdown, select "Use Multi-Byte Character Set".
 6. You can now use the methods and functions provided by winutil.h in your code. Refer to the documentation or examples provided with the library to understand how to use each method.
+
+## Methodology
+
+1. ```cpp static BOOL shutdown(BOOL rebootAfterShutdown); ``` - Allows you to turn off or depending on the argument restart the system.
+   
