@@ -16,7 +16,7 @@ winutil.h - independent abstract library to build your applications with prepare
 ## Features
 - Shutdown system
 - Restart system
-- Get process IDentifier by process name
+- Get process identifier by process name
 - Get all runtime windows now
 - Get BSOD
 - Get process info
@@ -41,4 +41,39 @@ winutil.h - independent abstract library to build your applications with prepare
 - Delete file
 - Delete directory
 
+## Examples
+Let's try to get the full path to the executable file by its name
+```cpp
+ #include "winutil.h"
+
+int main(int argc, char* argv[]) {
+    DWORD chromeProcessId = NULL;
+    try {
+       chromeProcessId = WinUtil::getProcessId("chrome.exe"); // Find PID (process identifier) by name
+    }
+    catch (WinException ex) {
+        std::cout << ex.what() << std::endl;
+    }
+
+    HANDLE chromeHandle = nullptr;
+
+    try {
+        WinUtil::getProcess(&chromeHandle, chromeProcessId); // Getting handle together with the early found PID
+    }
+    catch (WinException ex) {
+        std::cout << ex.what() << std::endl;
+    }
+
+    if (chromeHandle != nullptr) {
+        CHAR buffer[MAX_PATH];
+        DWORD size = sizeof(buffer) / sizeof(buffer[0]);
+
+        if (QueryFullProcessImageName(chromeHandle, 0, buffer, &size)) { // Get the full path to the executable file
+            std::cout << buffer << std::endl; // Output: C:\Program Files\Google\Chrome\Application\chrome.exe
+        }
+    }
+
+    return 0;
+}
+```
 
