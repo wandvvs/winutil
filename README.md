@@ -20,8 +20,33 @@ winutil.h - independent abstract library to build your applications with prepare
    ```
    Allows you to turn off or depending on the argument restart the system.
    
-3. ```cpp
+2. ```cpp
    static DWORD getProcessId(const char* processName);
    ```
    Finds the PID (Process IDentifier) by the process name.
-   
+
+3. ```cpp
+   static INT killProcess(const char* processName)
+   ```
+   Completes the process by its name.
+
+4. ```cpp
+   static INT getProcess(HANDLE* handleToProcess, DWORD pid)
+   ```
+   Getting handle of process by PID.
+
+5. ```cpp
+   static INT getProcess(HANDLE* handleToProcess, DWORD pid)
+   ```
+   Getting handle of process by PID.
+
+6. ```cpp
+   static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
+   static void getAllRuntimeWindows()
+   ```
+   Output in console all runtime windows now.
+
+7. ```cpp
+   static BOOL getBSOD()
+   ```
+   It`s will cause default BSOD.
