@@ -10,3 +10,4 @@ winutil.h - independent abstract library to build your applications with prepare
 ```cpp
 #include "winutil.h"
 ```
+4. You can now use the methods and functions provided by winutil.h in your code. Refer to the documentation or examples provided with the library to understand how to use each method.
