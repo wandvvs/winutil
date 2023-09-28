@@ -19,5 +19,8 @@ winutil.h - independent abstract library to build your applications with prepare
    static BOOL shutdown(BOOL rebootAfterShutdown);
    ```
    Allows you to turn off or depending on the argument restart the system.
-2. 
+2. ```cpp
+   static DWORD getProcessId(const char* processName);
+   ```
+   Finds the PID (Process IDentifier) by the process name.
    
