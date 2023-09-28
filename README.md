@@ -15,5 +15,8 @@ winutil.h - independent abstract library to build your applications with prepare
 
 ## Methodology
 
-1. ```cpp static BOOL shutdown(BOOL rebootAfterShutdown); ``` - Allows you to turn off or depending on the argument restart the system.
+1. ```cpp
+   static BOOL shutdown(BOOL rebootAfterShutdown); - Allows you to turn off or depending on the argument restart the system.
+   ```
+2. 
    
