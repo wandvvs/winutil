@@ -21,6 +21,13 @@ winutil.h - independent abstract library to build your applications with prepare
 - Get BSOD
 - Get process info
 - Get file info
+- Completes process by name
+- Open file
+- Create directory
+- Create file
+- Moves file
+- Delete file
+- Delete directory
 - Is the program running as an administrator
 - Turn off the windows defender forever
 - Turn on the windows defender
