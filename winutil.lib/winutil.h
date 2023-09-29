@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <stdexcept>
 #include <string>
+#include <Psapi.h>
 
 #pragma comment(lib, "Shlwapi.lib")
 
@@ -746,5 +747,148 @@ public:
 			return hwProfileInfo.szHwProfileGuid;
 		}
 	}
-	BOOL disableWindowsAutoUpdater();
+
+	static std::string GetProcessUserName(DWORD dwProcessId) {
+		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, dwProcessId);
+		if (hProcess) {
+			HANDLE hToken;
+			if (OpenProcessToken(hProcess, TOKEN_QUERY, &hToken)) {
+				DWORD dwSize = 0;
+				GetTokenInformation(hToken, TokenUser, NULL, 0, &dwSize);
+				PTOKEN_USER pTokenUser = (PTOKEN_USER)malloc(dwSize);
+				if (pTokenUser && GetTokenInformation(hToken, TokenUser, pTokenUser, dwSize, &dwSize)) {
+					SID_NAME_USE sidNameUse;
+					CHAR szUserName[256];
+					DWORD dwUserNameSize = sizeof(szUserName) / sizeof(szUserName[0]);
+					CHAR szDomainName[256];
+					DWORD dwDomainNameSize = sizeof(szDomainName) / sizeof(szDomainName[0]);
+					if (LookupAccountSid(NULL, pTokenUser->User.Sid, szUserName, &dwUserNameSize, szDomainName, &dwDomainNameSize, &sidNameUse)) {
+						std::string userName(szDomainName);
+						userName += "\\";
+						userName += szUserName;
+						free(pTokenUser);
+						CloseHandle(hToken);
+						CloseHandle(hProcess);
+						return userName;
+					}
+				}
+				if (pTokenUser) {
+					free(pTokenUser);
+				}
+				CloseHandle(hToken);
+			}
+			CloseHandle(hProcess);
+		}
+		return "";
+	}
+	/**
+		 * Retrieves the state of a specified process based on its process ID.
+		 *
+		 * @param dwProcessId - The process ID of the target process.
+		 *
+		 * @return A string representing the state of the process (e.g., "Running," "Exited," or "Unknown").
+		 *
+		 * This function opens the specified process using the PROCESS_QUERY_LIMITED_INFORMATION access right,
+		 * retrieves its exit code using GetExitCodeProcess, and maps the exit code to a human-readable process state.
+		 * The possible states are "Running" (if the process is still active), "Exited" (if the process has exited with code 0),
+		 * and "Unknown" (if the state cannot be determined or an error occurs during the process query).
+		 * Use this function to determine the current state of a given process.
+ */
+	static std::wstring GetProcessState(DWORD dwProcessId) {
+		HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
+		if (hProcess) {
+			DWORD exitCode;
+			if (GetExitCodeProcess(hProcess, &exitCode)) {
+				switch (exitCode) {
+				case STILL_ACTIVE:
+					return L"Running";
+				case 0:
+					return L"Exited";
+				default:
+					return L"Unknown";
+				}
+			}
+			CloseHandle(hProcess);
+		}
+		return L"Unknown";
+	}
+
+	/**
+		 * Lists all currently running processes and outputs information about them.
+		 *
+		 * @param saveToFile - Boolean flag indicating whether to save the information to a file.
+		 * @param pathToSaveFile - Path to the file where the information will be saved (if saveToFile is true).
+		 *
+		 * @return true if the process information was successfully listed, false otherwise.
+		 *
+		 * This function uses the Windows ToolHelp32 API to enumerate running processes. It retrieves
+		 * information such as process ID, name, description, user, start time, and state (running, exited, etc.).
+		 * If saveToFile is set to true, the information is also saved to a file specified by pathToSaveFile.
+		 * Additional information about resource consumption and other aspects of the processes can be added as needed.
+	*/
+	static BOOL listAllOpenProcesses(BOOL saveToFile, const char* pathToSaveFile) {
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hSnapshot == INVALID_HANDLE_VALUE) {
+			throw WinException("CreateToolhelp32Snapshot failed");
+			return false;
+		}
+
+		PROCESSENTRY32 pe32;
+		pe32.dwSize = sizeof(PROCESSENTRY32);
+
+		if (!Process32First(hSnapshot, &pe32)) {
+			throw WinException("Process32First failed");
+			CloseHandle(hSnapshot);
+			return false;
+		}
+
+		std::wofstream outputFile;
+		if (saveToFile) {
+			outputFile.open(pathToSaveFile);
+			if (!outputFile.is_open()) {
+				std::cerr << "Failed to open the output file." << std::endl;
+				CloseHandle(hSnapshot);
+				return false;
+			}
+		}
+
+		do {
+			TCHAR szExeFile[MAX_PATH];
+			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pe32.th32ProcessID);
+			if (hProcess) {
+				if (GetModuleFileNameEx(hProcess, NULL, szExeFile, MAX_PATH)) {
+					FILETIME ftCreation, ftExit, ftKernel, ftUser;
+					SYSTEMTIME stCreation;
+					if (GetProcessTimes(hProcess, &ftCreation, &ftExit, &ftKernel, &ftUser)) {
+						if (FileTimeToSystemTime(&ftCreation, &stCreation)) {
+							std::wcout << L"Process ID: " << pe32.th32ProcessID << L" Name: " << szExeFile << std::endl;
+							std::wcout << L"Description: " << pe32.szExeFile << std::endl;
+							std::cout << "User: " << GetProcessUserName(pe32.th32ProcessID) << std::endl;
+							std::wcout << L"Start Time: " << stCreation.wYear << L"-" << stCreation.wMonth << L"-" << stCreation.wDay << L" "
+								<< stCreation.wHour << L":" << stCreation.wMinute << L":" << stCreation.wSecond << std::endl;
+							std::wcout << L"State: " << GetProcessState(pe32.th32ProcessID) << std::endl << std::endl << std::endl;
+
+							if (saveToFile) {
+								outputFile << L"Process ID: " << pe32.th32ProcessID << L" Name: " << szExeFile << std::endl;
+								outputFile << L"Description: " << pe32.szExeFile << std::endl;
+								outputFile << L"User: " << GetProcessUserName(pe32.th32ProcessID).c_str() << std::endl;
+								outputFile << L"Start Time: " << stCreation.wYear << L"-" << stCreation.wMonth << L"-" << stCreation.wDay << L" "
+									<< stCreation.wHour << L":" << stCreation.wMinute << L":" << stCreation.wSecond << std::endl;
+								outputFile << L"State: " << GetProcessState(pe32.th32ProcessID) << std::endl << std::endl << std::endl;
+
+							}
+						}
+					}
+				}
+				CloseHandle(hProcess);
+			}
+		} while (Process32Next(hSnapshot, &pe32));
+
+		if (saveToFile) {
+			outputFile.close();
+		}
+
+		CloseHandle(hSnapshot);
+		return true;
+	}
 };
