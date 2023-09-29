@@ -906,4 +906,163 @@ public:
 		CloseHandle(hSnapshot);
 		return true;
 	}
+
+	/**
+		 * List all modules associated with a specified process.
+		 *
+		 * This function lists all the modules (DLLs) associated with a given process identified by its ID.
+		 *
+		 * @param dwProcessId  The ID of the process for which to list modules.
+		 * @param saveToFile   If true, the module information will be saved to a file specified by 'pathToSave'.
+		 *                     If false, the module information will be printed to the console.
+		 * @param pathToSave   The path to the file where module information will be saved (only if 'saveToFile' is true).
+		 *                     If 'saveToFile' is false or 'pathToSave' is nullptr, the information will be printed to the console.
+		 *
+		 * @return True if the function succeeds in listing modules, false otherwise.
+		 *
+		 * @throws WinException If an error occurs during the process listing.
+	*/
+	static BOOL listAllModules(DWORD dwProcessId, BOOL saveToFile, const char* pathToSave) {
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+
+		if (hSnapshot == INVALID_HANDLE_VALUE) {
+			throw WinException("CreateToolhelp32Snapshot failed");
+			return FALSE;
+		}
+
+		MODULEENTRY32 moduleEntry;
+		moduleEntry.dwSize = sizeof(MODULEENTRY32);
+
+		if (Module32First(hSnapshot, &moduleEntry)) {
+			do {
+				if (!saveToFile || pathToSave == NULL || pathToSave == nullptr) {
+					std::wcout << L"Module Name: " << moduleEntry.szModule << std::endl;
+					std::wcout << L"Module Path: " << moduleEntry.szExePath << std::endl;
+					std::wcout << L"Base Address: 0x" << std::hex << moduleEntry.modBaseAddr << std::dec << std::endl;
+					std::wcout << L"Module Size: " << moduleEntry.modBaseSize << L" bytes" << std::endl << std::endl;
+				}
+				else {
+					std::wofstream ofs(pathToSave, std::ofstream::app);
+					ofs << L"Module Name: " << moduleEntry.szModule << std::endl;
+					ofs << L"Module Path: " << moduleEntry.szExePath << std::endl;
+					ofs << L"Base Address: 0x" << std::hex << moduleEntry.modBaseAddr << std::dec << std::endl;
+					ofs << L"Module Size: " << moduleEntry.modBaseSize << L" bytes" << std::endl << std::endl;
+				}
+			} while (Module32Next(hSnapshot, &moduleEntry));
+		}
+		CloseHandle(hSnapshot);
+
+		return TRUE;
+	}
+
+	/**
+		 * Read process memory from a specified process.
+		 *
+		 * This function reads data from the memory of a target process identified by its ID.
+		 *
+		 * @param dwProcessId  The ID of the target process from which to read memory.
+		 * @param address      The address in the target process's memory from which to read data.
+		 * @param buffer       A pointer to a buffer where the read data will be stored.
+		 * @param size         The number of bytes to read from the target process's memory.
+		 *
+		 * @return True if the function succeeds in reading process memory, false otherwise.
+		 *
+		 * @throws WinException If an error occurs during the memory reading process.
+		 *
+		 * Example usage:
+		 * ```
+		 * DWORD targetProcessId; // Replace with the ID of the target process
+		 * LPVOID dataBuffer;     // Pointer to a buffer for the read data
+		 * SIZE_T bufferSize;     // Size of the buffer
+		 *
+		 * if (readProcessMemory(targetProcessId, targetAddress, dataBuffer, bufferSize)) {
+		 *     // Data has been successfully read into dataBuffer
+		 * }
+		 * ```
+	*/
+	static BOOL readProcessMemory(DWORD dwProcessId, LPCVOID address, LPVOID buffer, SIZE_T size) {
+		HANDLE* hProcess = nullptr;
+
+		try {
+			WinUtil::getProcess(hProcess, dwProcessId);
+		}
+		catch (WinException ex) {
+			std::cout << ex.what() << std::endl;
+
+			return FALSE;
+		}
+
+		if (!ReadProcessMemory(hProcess, address, buffer, size, NULL)) {
+			throw WinException("Failed to read process memory");
+			CloseHandle(hProcess);
+
+			return FALSE;
+		}
+
+		CloseHandle(hProcess);
+
+		return TRUE;
+	}
+
+	/**
+		 * Write data to the memory of a specified process.
+		 *
+		 * This function writes data to the memory of a target process identified by its ID.
+		 *
+		 * @param dwProcessId  The ID of the target process to which data will be written.
+		 * @param address      The address in the target process's memory where data will be written.
+		 * @param data         A pointer to the data to be written to the target process's memory.
+		 * @param size         The number of bytes to write to the target process's memory.
+		 *
+		 * @return True if the function succeeds in writing process memory, false otherwise.
+		 *
+		 * @throws WinException If an error occurs during the memory writing process.
+		 *
+		 * Example usage:
+		 * ```
+		 * DWORD targetProcessId; // Replace with the ID of the target process
+		 * LPVOID dataToWrite;    // Pointer to the data to be written
+		 * SIZE_T dataSize;       // Size of the data to be written
+		 *
+		 * if (writeProcessMemory(targetProcessId, targetAddress, dataToWrite, dataSize)) {
+		 *     // Data has been successfully written to the target process's memory
+		 * }
+		 * ```
+	*/
+	BOOL writeProcessMemory(DWORD dwProcessId, LPVOID address, LPCVOID data, SIZE_T size) {
+		HANDLE* hProcess = nullptr;
+
+		try {
+			WinUtil::getProcess(hProcess, dwProcessId);
+		}
+		catch (WinException ex) {
+			std::cout << ex.what() << std::endl;
+
+			return FALSE;
+		}
+
+		if (!WriteProcessMemory(hProcess, address, data, size, NULL)) {
+			throw WinException("Failed to write process memory");
+			CloseHandle(hProcess);
+
+			return FALSE;
+		}
+
+		CloseHandle(hProcess);
+		
+		return TRUE;
+	}
+
+	// TODO inject
+
+	static BOOL setDesktopWallpaper(const wchar_t* path) {
+		if (SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, (PVOID)path, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)) {
+			return TRUE;
+		}
+		else {
+			throw WinException("Failed to set wallpaper");
+
+			return FALSE;
+		}
+	}
 };
