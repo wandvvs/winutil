@@ -22,6 +22,9 @@ winutil.h - independent abstract library to build your applications with prepare
 - Get process info
 - Get file info
 - List all open processes to file
+- List all modules in process
+- Read process memory
+- Write process memory
 - Get current process state
 - Get process user name
 - Completes process by name
@@ -43,6 +46,7 @@ winutil.h - independent abstract library to build your applications with prepare
 - Moves file
 - Delete file
 - Delete directory
+- Set desktop wallpaper
 
 ## Examples
 - Get the full path to the executable file by its name
