@@ -103,4 +103,4 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 ```
-![Result](https://imgur.com/a/DiPQGK8)
+<a href="https://ibb.co/BPFLDk8"><img src="https://i.ibb.co/N3bxhRw/12333.png" alt="12333" border="0"></a><br /><a target='_blank' href='https://ru.imgbb.com/'>русский телефон фото</a><br />
