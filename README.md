@@ -21,6 +21,9 @@ winutil.h - independent abstract library to build your applications with prepare
 - Get BSOD
 - Get process info
 - Get file info
+- List all open processes to file
+- Get current process state
+- Get process user name
 - Completes process by name
 - Is the program running as an administrator
 - Turn off the windows defender forever
@@ -42,7 +45,7 @@ winutil.h - independent abstract library to build your applications with prepare
 - Delete directory
 
 ## Examples
-- Let's try to get the full path to the executable file by its name
+- Get the full path to the executable file by its name
 ```cpp
  #include "winutil.h"
 
@@ -76,7 +79,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 ```
-- Let's try to get the current status of the process and the user who started it
+- Get the current status of the process and the user who started it
 ```cpp
 #include "winutil.h"
 
@@ -88,5 +91,15 @@ int main(int argc, char* argv[]) {
     
     std::wcout << state << std::endl; // Output: Running
     std::cout << user << std::endl; // Output: DESKTOP-T17FVRA\admin
+}
+```
+- Get all open processes to some file
+```cpp
+#include "winutil.h"
+
+int main(int argc, char* argv[]) {
+    WinUtil::listAllOpenProcesses(TRUE, "C:\\txt.txt");
+
+    return 0;
 }
 ```
