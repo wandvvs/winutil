@@ -748,7 +748,22 @@ public:
 		}
 	}
 
-	static std::string GetProcessUserName(DWORD dwProcessId) {
+	/**
+		 * Retrieves the username associated with a specified process based on its process ID.
+		 *
+		 * @param dwProcessId - The process ID of the target process.
+		 *
+		 * @return A string representing the username associated with the process (e.g., "Domain\Username").
+		 *         If the username cannot be determined or an error occurs during the query, an empty string is returned.
+		 *
+		 * This function opens the specified process using the PROCESS_QUERY_INFORMATION access right,
+		 * retrieves the associated user's security identifier (SID) using OpenProcessToken and GetTokenInformation,
+		 * and then looks up the username associated with the SID using LookupAccountSid.
+		 * The retrieved username is returned in the format "Domain\Username."
+		 * If the username cannot be determined or an error occurs during the query, an empty string is returned.
+		 * Use this function to determine the user associated with a given process.
+	 */
+	static std::string getProcessUserName(DWORD dwProcessId) {
 		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, dwProcessId);
 		if (hProcess) {
 			HANDLE hToken;
@@ -794,7 +809,7 @@ public:
 		 * and "Unknown" (if the state cannot be determined or an error occurs during the process query).
 		 * Use this function to determine the current state of a given process.
  */
-	static std::wstring GetProcessState(DWORD dwProcessId) {
+	static std::wstring getProcessState(DWORD dwProcessId) {
 		HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
 		if (hProcess) {
 			DWORD exitCode;
@@ -863,18 +878,18 @@ public:
 						if (FileTimeToSystemTime(&ftCreation, &stCreation)) {
 							std::wcout << L"Process ID: " << pe32.th32ProcessID << L" Name: " << szExeFile << std::endl;
 							std::wcout << L"Description: " << pe32.szExeFile << std::endl;
-							std::cout << "User: " << GetProcessUserName(pe32.th32ProcessID) << std::endl;
+							std::cout << "User: " << getProcessUserName(pe32.th32ProcessID) << std::endl;
 							std::wcout << L"Start Time: " << stCreation.wYear << L"-" << stCreation.wMonth << L"-" << stCreation.wDay << L" "
 								<< stCreation.wHour << L":" << stCreation.wMinute << L":" << stCreation.wSecond << std::endl;
-							std::wcout << L"State: " << GetProcessState(pe32.th32ProcessID) << std::endl << std::endl << std::endl;
+							std::wcout << L"State: " << getProcessState(pe32.th32ProcessID) << std::endl << std::endl << std::endl;
 
 							if (saveToFile) {
 								outputFile << L"Process ID: " << pe32.th32ProcessID << L" Name: " << szExeFile << std::endl;
 								outputFile << L"Description: " << pe32.szExeFile << std::endl;
-								outputFile << L"User: " << GetProcessUserName(pe32.th32ProcessID).c_str() << std::endl;
+								outputFile << L"User: " << getProcessUserName(pe32.th32ProcessID).c_str() << std::endl;
 								outputFile << L"Start Time: " << stCreation.wYear << L"-" << stCreation.wMonth << L"-" << stCreation.wDay << L" "
 									<< stCreation.wHour << L":" << stCreation.wMinute << L":" << stCreation.wSecond << std::endl;
-								outputFile << L"State: " << GetProcessState(pe32.th32ProcessID) << std::endl << std::endl << std::endl;
+								outputFile << L"State: " << getProcessState(pe32.th32ProcessID) << std::endl << std::endl << std::endl;
 
 							}
 						}
