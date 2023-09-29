@@ -18,6 +18,8 @@
 #include <Psapi.h>
 
 #pragma comment(lib, "Shlwapi.lib")
+#pragma comment(lib, "Winmm.lib")
+#pragma warning(disable : 4996)
 
 /*
 	This is enum "MessageBoxType" used in method void WinUtil::callMessageBox(const char* text, const char* title, MessageBoxType type)
@@ -57,10 +59,6 @@ public:
 private:
 	std::string errorMsg;
 };
-
-/*
-	General class of library. He doesn`t have any constructors or destructors, just create instance of WinUtil and use methods which u want.
-*/
 
 class WinUtil {
 public:
@@ -955,6 +953,30 @@ public:
 		return TRUE;
 	}
 
+	static BOOL findModule(DWORD dwProcessId, const char* moduleName) {
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+
+		if (hSnapshot == INVALID_HANDLE_VALUE) {
+			throw WinException("CreateToolhelp32Snapshot failed.");
+
+			return NULL;
+		}
+
+		MODULEENTRY32 moduleEntry;
+		moduleEntry.dwSize = sizeof(MODULEENTRY32);
+
+		if (Module32First(hSnapshot, &moduleEntry)) {
+			do {
+				if (strcmp(moduleEntry.szModule, moduleName) == 0) { return TRUE; }
+			}
+			while (Module32Next(hSnapshot, &moduleEntry));
+		}
+
+		CloseHandle(hSnapshot);
+
+		return FALSE;
+	}
+
 	/**
 		 * Read process memory from a specified process.
 		 *
@@ -1053,8 +1075,14 @@ public:
 		return TRUE;
 	}
 
-	// TODO inject
-
+	/**
+		 * Sets an image as the desktop wallpaper.
+		 *
+		 * @param path The path to the image to be set as the desktop wallpaper.
+		 *
+		 * @return TRUE if the desktop wallpaper was set successfully, FALSE if there was an error.
+		 *         In case of an error, a WinException with an error description is thrown.
+	*/
 	static BOOL setDesktopWallpaper(const wchar_t* path) {
 		if (SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, (PVOID)path, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)) {
 			return TRUE;
@@ -1064,5 +1092,35 @@ public:
 
 			return FALSE;
 		}
+	}
+
+	static BOOL playSound(const char* path) {
+		if (PlaySound(TEXT(path), NULL, SND_FILENAME | SND_SYNC)) {
+			return TRUE;
+		}
+		return FALSE;
+	}
+
+	/**
+		 * Hides the console window at program startup.
+		 *
+		 * This method hides the console window in which the program is running,
+		 * preventing it from being displayed to the user. This can be useful for
+		 * applications that do not require interaction with the user through the console.
+		 * This method should be called at the very beginning of the program's execution,
+		 * preferably before any console output is made, to ensure that the console window
+		 * is reliably hidden.
+		 *
+		 * @return
+		 *    - 1: The console window was successfully hidden.
+		 *
+		 * 
+	*/
+	static INT hideConsoleAtStartup() {
+		HWND consoleWindow = GetConsoleWindow();
+
+		ShowWindow(consoleWindow, SW_HIDE);
+
+		return 1;
 	}
 };
