@@ -42,7 +42,7 @@ winutil.h - independent abstract library to build your applications with prepare
 - Delete directory
 
 ## Examples
-Let's try to get the full path to the executable file by its name
+- Let's try to get the full path to the executable file by its name
 ```cpp
  #include "winutil.h"
 
@@ -76,4 +76,17 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 ```
+- Let's try to get the current status of the process and the user who started it
+```cpp
+#include "winutil.h"
 
+int main(int argc, char* argv[]) {
+    DWORD pid = WinUtil::getProcessId("chrome.exe");
+
+    std::wstring state = WinUtil::getProcessState(pid);
+    std::string user = WinUtil::getProcessUserName(pid);
+    
+    std::wcout << state << std::endl; // Output: Running
+    std::cout << user << std::endl; // Output: DESKTOP-T17FVRA\admin
+}
+```
