@@ -55,6 +55,7 @@ winutil.h - independent abstract library to build your applications with prepare
 - Empty recycle bin
 - Write to file
 - Get clipboard content
+- Get screenshot of the screen
 
 ## Examples
 - Get the full path to the executable file by its name
