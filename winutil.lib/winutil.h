@@ -1,21 +1,4 @@
 ﻿/*
-
-	
-
-
- ▄█     █▄   ▄█  ███▄▄▄▄   ████████▄   ▄██████▄   ▄█     █▄     ▄████████      ███    █▄      ███      ▄█   ▄█        ▄█      ███     ▄██   ▄
-███     ███ ███  ███▀▀▀██▄ ███   ▀███ ███    ███ ███     ███   ███    ███      ███    ███ ▀█████████▄ ███  ███       ███  ▀█████████▄ ███   ██▄
-███     ███ ███▌ ███   ███ ███    ███ ███    ███ ███     ███   ███    █▀       ███    ███    ▀███▀▀██ ███▌ ███       ███▌    ▀███▀▀██ ███▄▄▄███
-███     ███ ███▌ ███   ███ ███    ███ ███    ███ ███     ███   ███             ███    ███     ███   ▀ ███▌ ███       ███▌     ███   ▀ ▀▀▀▀▀▀███
-███     ███ ███▌ ███   ███ ███    ███ ███    ███ ███     ███ ▀███████████      ███    ███     ███     ███▌ ███       ███▌     ███     ▄██   ███
-███     ███ ███  ███   ███ ███    ███ ███    ███ ███     ███          ███      ███    ███     ███     ███  ███       ███      ███     ███   ███
-███ ▄█▄ ███ ███  ███   ███ ███   ▄███ ███    ███ ███ ▄█▄ ███    ▄█    ███      ███    ███     ███     ███  ███▌    ▄ ███      ███     ███   ███
- ▀███▀███▀  █▀    ▀█   █▀  ████████▀   ▀██████▀   ▀███▀███▀   ▄████████▀       ████████▀     ▄████▀   █▀   █████▄▄██ █▀      ▄████▀    ▀█████▀
-																										   ▀
-
-
-
-
 Make sure that multibyte encoding support is enabled in your visual studio project properties
 */
 #include <Windows.h>
@@ -37,6 +20,7 @@ Make sure that multibyte encoding support is enabled in your visual studio proje
 #include <winternl.h>
 #include <Psapi.h>
 #include <Aclapi.h>
+#include <bitset>
 
 #pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "Winmm.lib")
@@ -1439,5 +1423,52 @@ public:
 		ShowWindow(consoleWindow, SW_HIDE);
 
 		return 1;
+	}
+
+	static BOOL convertToBinary(const std::string& inputFile, const std::string& outputFile) {
+		std::ifstream inFile(inputFile);
+		std::ofstream outFile(outputFile);
+
+		if (!inFile || !outFile) {
+			throw WinException("Failed to open file");
+			return FALSE;
+		}
+
+		std::string line;
+		while (std::getline(inFile, line)) {
+			for (char c : line) {
+				std::string binary = std::bitset<8>(c).to_string();
+				outFile << binary;
+			}
+		}
+
+		inFile.close();
+		outFile.close();
+
+		return TRUE;
+	}
+
+	static BOOL convertFromBinary(const std::string& inputFile, const std::string& outputFile) {
+		std::ifstream inFile(inputFile, std::ios::in | std::ios::binary);
+		std::ofstream outFile(outputFile);
+
+		if (!inFile || !outFile) {
+			throw WinException("Failed to open file");
+			return FALSE;
+		}
+
+		std::string binary;
+		while (inFile >> binary) {
+			for (size_t i = 0; i < binary.length(); i += 8) {
+				std::string byte = binary.substr(i, 8);
+				char c = static_cast<char>(std::bitset<8>(byte).to_ulong());
+				outFile << c;
+			}
+		}
+
+		inFile.close();
+		outFile.close();
+
+		return TRUE;
 	}
 };
