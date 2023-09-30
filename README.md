@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
 }
 ```
 - Result:
-![Output](https://media.discordapp.net/attachments/1130912178124361779/1157372687824474112/12333.png?ex=65185ecf&is=65170d4f&hm=72b6df613b703c12492edd9c2b695aa96f152414d39d68b10572964f6ae4aa81&=&width=851&height=676)
+![Output](https://media.discordapp.net/attachments/812000275698679818/1157637707774828635/image.png?ex=651955a1&is=65180421&hm=089f9d3f8253e9dbeb8acc3f1c8de488e2377c339524ce67a35cd929c199851c&=&width=599&height=675)
 
 - Convert file contents to binary code
 ```cpp
