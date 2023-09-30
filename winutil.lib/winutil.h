@@ -1,4 +1,23 @@
-// Make sure that multibyte encoding support is enabled in your visual studio project properties
+﻿/*
+
+	
+
+
+ ▄█     █▄   ▄█  ███▄▄▄▄   ████████▄   ▄██████▄   ▄█     █▄     ▄████████      ███    █▄      ███      ▄█   ▄█        ▄█      ███     ▄██   ▄
+███     ███ ███  ███▀▀▀██▄ ███   ▀███ ███    ███ ███     ███   ███    ███      ███    ███ ▀█████████▄ ███  ███       ███  ▀█████████▄ ███   ██▄
+███     ███ ███▌ ███   ███ ███    ███ ███    ███ ███     ███   ███    █▀       ███    ███    ▀███▀▀██ ███▌ ███       ███▌    ▀███▀▀██ ███▄▄▄███
+███     ███ ███▌ ███   ███ ███    ███ ███    ███ ███     ███   ███             ███    ███     ███   ▀ ███▌ ███       ███▌     ███   ▀ ▀▀▀▀▀▀███
+███     ███ ███▌ ███   ███ ███    ███ ███    ███ ███     ███ ▀███████████      ███    ███     ███     ███▌ ███       ███▌     ███     ▄██   ███
+███     ███ ███  ███   ███ ███    ███ ███    ███ ███     ███          ███      ███    ███     ███     ███  ███       ███      ███     ███   ███
+███ ▄█▄ ███ ███  ███   ███ ███   ▄███ ███    ███ ███ ▄█▄ ███    ▄█    ███      ███    ███     ███     ███  ███▌    ▄ ███      ███     ███   ███
+ ▀███▀███▀  █▀    ▀█   █▀  ████████▀   ▀██████▀   ▀███▀███▀   ▄████████▀       ████████▀     ▄████▀   █▀   █████▄▄██ █▀      ▄████▀    ▀█████▀
+																										   ▀
+
+
+
+
+Make sure that multibyte encoding support is enabled in your visual studio project properties
+*/
 #include <Windows.h>
 #include <tlhelp32.h>
 #include <fstream>
@@ -23,55 +42,71 @@
 #pragma comment(lib, "Winmm.lib")
 #pragma warning(disable : 4996)
 
-/*
-	This is enum "MessageBoxType" used in method void WinUtil::callMessageBox(const char* text, const char* title, MessageBoxType type)
-	It is used for type of Windows Message Box (icon, sound and etc.) Try it out and choose what kind of message box types
-	Do u need in your specific situation.
-*/
-
+/**
+ * Enumeration for MessageBox Types.
+ *
+ * This enum defines different types of messages that can be displayed using the MessageBox.
+ * It is used to specify the type of message box and the corresponding icon to display.
+ */
 enum MessageBoxType {
-	INFORMATION,
-	QUESTION,
-	WARNING,
-	MISTAKE
+	INFORMATION, ///< Informational message with an information icon.
+	QUESTION,    ///< Question message with a question mark icon.
+	WARNING,     ///< Warning message with a warning icon.
+	MISTAKE      ///< Error message with an error icon.
 };
-/*
-	I decided to make my own unique class for exceptions, they are used everywhere to catch errors in each method.
 
-	Usage example:
-
-	try {
-		WinUtil::shutdown(FALSE);
-	}
-	catch(WinException ex) {
-		std::cout << ex.what() << std::endl;
-	}
-
-	I advise you to cover any method with such a wrapper
-*/
+/**
+ * Custom Windows Exception Class.
+ *
+ * This class is used to create custom exceptions for Windows-specific errors.
+ * It inherits from std::runtime_error and includes additional information about
+ * the Windows error code associated with the exception.
+ */
 class WinException : public std::runtime_error {
 public:
+	/**
+	 * Constructor for WinException.
+	 *
+	 * @param message A string containing a custom error message.
+	 * @remarks The constructor appends the Windows error code to the provided message.
+	 */
 	WinException(const std::string& message) : std::runtime_error(message) {
 		errorMsg = message + "\nError code: " + std::to_string(GetLastError());
 	}
 
+	/**
+	 * Retrieve the exception message.
+	 *
+	 * @return A C-string containing the error message along with the associated
+	 *         Windows error code.
+	 */
 	const char* what() const noexcept override {
 		return errorMsg.c_str();
 	}
 private:
-	std::string errorMsg;
+	std::string errorMsg; ///< The error message including the Windows error code.
 };
 
 class WinUtil {
 public:
 
-	/*
-
-		The method the essence of which is to turn off the system or restart it by BOOL rebootAfterShutdown argument.
-		Example: shutdown(TRUE) --- It will be restart ur system.
-
+	/**
+		 * Shutdown or restart the computer.
+		 *
+		 * This method initiates a system shutdown or restart based on the provided parameter.
+		 *
+		 * @param rebootAfterShutdown If `rebootAfterShutdown` is set to TRUE, the method initiates a system restart; if FALSE, it initiates a system shutdown.
+		 *
+		 * @return TRUE if the system shutdown or restart was successfully initiated, FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs while opening the process token, looking up privilege values, adjusting token privileges,
+		 *                      or initiating the system shutdown.
+		 *
+		 * @note To perform a system shutdown or restart, this method requires appropriate privileges.
+		 *       It adjusts the token privileges to enable shutdown/restart capabilities, initiates the action,
+		 *       and then reverts the privileges to their original state before returning.
+		 *       If any step of this process fails, it throws a WinException with an appropriate error message.
 	*/
-
 	static BOOL shutdown(BOOL rebootAfterShutdown) {
 		HANDLE hToken;
 		TOKEN_PRIVILEGES tkp;
@@ -110,14 +145,23 @@ public:
 		return TRUE;
 	}
 
-	/*
-
-		The method which help to get PID by process name.
-		You can view the PID of any process in the task manager yourself, this method will do it only by the process name.
-		Example: getProcessId("csgo.exe");   >_<   getProcessId(chrome.exe);
-
+	/**
+		 * Get the Process ID (PID) of a process by its name.
+		 *
+		 * This method attempts to find and return the Process ID (PID) of a process with the specified name.
+		 * It uses the CreateToolhelp32Snapshot and Process32First/Process32Next functions to enumerate the running processes
+		 * and matches the process name to the specified name. If a matching process is found, its PID is returned;
+		 * if the process is not found, it throws a WinException with an error message and returns 0.
+		 *
+		 * @param processName The name of the process for which to retrieve the PID.
+		 *
+		 * @return The Process ID (PID) of the specified process, or 0 if the process is not found.
+		 *
+		 * @throws WinException if an error occurs during the process enumeration or if the specified process is not found.
+		 *
+		 * @note This method scans the list of running processes to find a match by name. If a process with the specified name is found,
+		 *       its PID is returned; otherwise, it throws a WinException with an appropriate error message.
 	*/
-
 	static DWORD getProcessId(const char* processName) {
 		DWORD pid = 0;
 		HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -140,13 +184,24 @@ public:
 		return pid;
 	}
 
-	/*
-
-		The method which completes process by him name.
-		Example: killProcess("chrome.exe");
-
+	/**
+		 * Terminate a process by its name.
+		 *
+		 * This method attempts to terminate a process with the specified name by obtaining its Process ID (PID)
+		 * and terminating the process using the TerminateProcess function.
+		 * If the process is successfully terminated, it returns 1; if the process is not found, it throws a WinException with an error message;
+		 * if any other error occurs, it throws a WinException and returns -1.
+		 *
+		 * @param processName The name of the process to be terminated.
+		 *
+		 * @return 1 if the process was successfully terminated, -1 if there was an error, or an exception is thrown for process not found.
+		 *
+		 * @throws WinException if an error occurs during the process termination or if the specified process is not found.
+		 *
+		 * @note This method uses the getProcessId function to obtain the Process ID (PID) of the specified process by name.
+		 *       It then attempts to open the process using OpenProcess and terminates it using TerminateProcess.
+		 *       If the process is not found or if any other error occurs, it throws a WinException with an appropriate error message.
 	*/
-
 	static INT killProcess(const char* processName) {
 		DWORD pid = getProcessId(processName);
 
@@ -168,14 +223,23 @@ public:
 		}
 	}
 
-	/*
-
-		The method which help you to get handle to process.
-		Example:
-		HANDLE* h;         WinUtil::getProcess(h, 5154);
-
+	/**
+		 * Get a handle to a process by its Process ID (PID).
+		 *
+		 * This method attempts to obtain a handle to a process with the specified Process ID (PID).
+		 * If a valid handle to the process is obtained, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to get the process handle.
+		 *
+		 * @param handleToProcess A pointer to a handle that will store the obtained process handle.
+		 * @param pid The Process ID (PID) of the target process.
+		 *
+		 * @return TRUE if the process handle was successfully obtained; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the process handle retrieval.
+		 *
+		 * @note This method uses the OpenProcess function from the Windows API to obtain a handle to the specified process by its PID.
+		 *       If the process handle cannot be obtained for any reason, it throws a WinException with an error message.
 	*/
-
 	static BOOL getProcess(HANDLE* handleToProcess, DWORD pid) {
 		*handleToProcess = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
 
@@ -187,6 +251,22 @@ public:
 		return TRUE;
 	}
 
+	/**
+		 * Close a handle to a process or resource.
+		 *
+		 * This method attempts to close a handle to a process or resource specified by the provided handle pointer.
+		 * If the handle is successfully closed, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to close the handle.
+		 *
+		 * @param handleToProcess A pointer to the handle to be closed.
+		 *
+		 * @return TRUE if the handle was successfully closed; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the handle closing process.
+		 *
+		 * @note This method checks if the handle is not NULL and attempts to close it using the CloseHandle function from the Windows API.
+		 *       If the handle cannot be closed for any reason, it throws a WinException with an error message.
+	*/
 	static BOOL closeHandle(HANDLE* handleToProcess) {
 		if (*handleToProcess != NULL && !CloseHandle(*handleToProcess)) {
 			throw WinException("Failed to close handle");
@@ -199,13 +279,22 @@ public:
 	}
 
 
-	/*
-
-		The method which help u with opening file by path;
-		Example: WinUtil::openFile("C:\\1.exe");
-
+	/**
+		 * Open a file at the specified path using the default associated program.
+		 *
+		 * This method attempts to open a file located at the specified path using the default associated program.
+		 * If the file can be successfully opened, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to open the file.
+		 *
+		 * @param path The path of the file to be opened.
+		 *
+		 * @return TRUE if the file was successfully opened; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the file opening process.
+		 *
+		 * @note This method uses the ShellExecute function from the Windows API to open the specified file using the default program.
+		 *       If the file cannot be opened for any reason, it throws a WinException with an error message.
 	*/
-
 	static BOOL openFile(const char* path) {
 		HINSTANCE result = ShellExecute(NULL, "open", path, NULL, NULL, SW_SHOWNORMAL);
 
@@ -218,13 +307,22 @@ public:
 		return true;
 	}
 
-	/*
-
-		The method which help u creating directories.
-		Example: WinUtil::createDirectory("C:\\folder");
-
+	/**
+		 * Create a new directory at the specified path.
+		 *
+		 * This method attempts to create a new directory at the specified path.
+		 * If the directory creation is successful, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to create the directory.
+		 *
+		 * @param path The path where the new directory will be created.
+		 *
+		 * @return TRUE if the directory was successfully created; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the directory creation process.
+		 *
+		 * @note This method uses the CreateDirectory function from the Windows API to create a new directory at the specified path.
+		 *       If the directory cannot be created for any reason, it throws a WinException with an error message.
 	*/
-
 	static BOOL createDirectory(const char* path) {
 		if (CreateDirectory(path, NULL) == FALSE) {
 			throw WinException("Failed to create directory");
@@ -234,13 +332,22 @@ public:
 		return TRUE;
 	}
 
-	/*
-
-		The method which help u with creating files.
-		Example: WinUtil::createFile("C:\\vir.exe");
-
+	/**
+		 * Create a new file at the specified path.
+		 *
+		 * This method attempts to create a new file at the specified path.
+		 * If the file creation is successful, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to create the file.
+		 *
+		 * @param path The path where the new file will be created.
+		 *
+		 * @return TRUE if the file was successfully created; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the file creation process.
+		 *
+		 * @note This method uses the CreateFileA function from the Windows API to create a new file at the specified path.
+		 *       If the file cannot be created for any reason, it throws a WinException with an error message.
 	*/
-
 	static BOOL createFile(const char* path) {
 		HANDLE hFile = CreateFileA(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -254,13 +361,23 @@ public:
 		return true;
 	}
 
-	/*
-
-		The method which help u with moves file (also its apply rename file);
-		Example: WinUtil::moveFiles("C:\\1.txt", "C:\\2.txt"); --- It will be move file 1.txt to 2.txt
-
+	/**
+		 * Move a file or directory from the specified path to a new destination path.
+		 *
+		 * This method attempts to move a file or directory located at the specified path to a new destination path.
+		 * If the move operation is successful, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to move the file or directory.
+		 *
+		 * @param path The current path of the file or directory to be moved.
+		 * @param newPath The new destination path for the file or directory.
+		 *
+		 * @return TRUE if the file or directory was successfully moved; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the move operation.
+		 *
+		 * @note This method uses the MoveFile function from the Windows API to move the file or directory to the new path.
+		 *       If the move operation cannot be completed for any reason, it throws a WinException with an error message.
 	*/
-
 	static BOOL moveFiles(const char* path, const char* newPath) {
 		if (MoveFile(path, newPath) == FALSE) {
 			throw WinException("Failed to move file by path");
@@ -271,13 +388,22 @@ public:
 		return true;
 	}
 
-	/*
-
-		The method which help u with deleting files by path.
-		Example: WinUtil::deleteFile("C:\\empty.txt");
-
+	/**
+		 * Delete a file at the specified path.
+		 *
+		 * This method attempts to delete a file located at the specified path.
+		 * If the deletion is successful, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to delete the file.
+		 *
+		 * @param path The path of the file to be deleted.
+		 *
+		 * @return TRUE if the file was successfully deleted; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the file deletion process.
+		 *
+		 * @note This method uses the DeleteFile function from the Windows API to delete the specified file.
+		 *       If the file cannot be deleted for any reason, it throws a WinException with an error message.
 	*/
-
 	static BOOL deleteFile(const char* path) {
 		if (DeleteFile(path) == FALSE) {
 			throw WinException("Failed to delete file");
@@ -288,13 +414,22 @@ public:
 		return true;
 	}
 
-	/*
-
-		The method which help u with deleting directories by path.
-		Example: WinUtil::deleteFile("C:\\someFolder");
-
+	/**
+		 * Delete a directory at the specified path.
+		 *
+		 * This method attempts to delete a directory located at the specified path.
+		 * If the deletion is successful, it returns TRUE; otherwise, it throws a WinException with an error message
+		 * and returns FALSE to indicate a failure to delete the directory.
+		 *
+		 * @param path The path of the directory to be deleted.
+		 *
+		 * @return TRUE if the directory was successfully deleted; FALSE otherwise.
+		 *
+		 * @throws WinException if an error occurs during the directory deletion process.
+		 *
+		 * @note This method uses the RemoveDirectory function from the Windows API to delete the specified directory.
+		 *       If the directory cannot be deleted for any reason, it throws a WinException with an error message.
 	*/
-
 	static BOOL deleteDirectory(const char* path) {
 		if (RemoveDirectory(path) == FALSE) {
 			throw WinException("Failed to delete directory");
@@ -305,13 +440,23 @@ public:
 		return true;
 	}
 
-	/*
-
-		Supportive callback for method WinUtil::gellAllRuntimeWindows();
-		Nevermind.
-
+	
+	/**
+		 * Callback function to enumerate and retrieve information about visible windows.
+		 *
+		 * This callback function is used with the EnumWindows function to enumerate all top-level windows
+		 * and retrieve information about visible windows, including their window handles, titles, and associated Process IDs (PIDs).
+		 * It is commonly used for window enumeration and information gathering purposes.
+		 *
+		 * @param hwnd A handle to a top-level window found during enumeration.
+		 * @param lParam An application-defined value provided during the EnumWindows call.
+		 *
+		 * @return TRUE to continue enumeration and processing of windows; FALSE to stop enumeration.
+		 *
+		 * @note This function checks if a window is visible and retrieves its title and associated PID.
+		 *       If a visible window with a title is found, it prints information about the window to the console.
+		 *       It is often used with the EnumWindows function to inspect and interact with windows in the system.
 	*/
-
 	static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
 		SetConsoleOutputCP(CP_UTF8);
 		char buffer[256];
@@ -322,23 +467,39 @@ public:
 		}
 		return TRUE;
 	}
-	/*
 
-		The method which outputs in console all runtime windows and their PID now.
-		Most likely it will be more useful if it saves this information to some file, you can try.
-
+	/**
+		 * Enumerate and retrieve information about all visible runtime windows on the system.
+		 *
+		 * This method uses the EnumWindows function to enumerate all top-level windows on the system
+		 * and retrieves information about visible windows, including their window handles, titles, and associated Process IDs (PIDs).
+		 * It prints the information about each visible window to the console.
+		 *
+		 * @return None.
+		 *
+		 * @note This method provides a convenient way to enumerate and gather information about all visible windows
+		 *       currently running on the system. It uses the EnumWindowsProc callback function to process each window.
 	*/
 	static void getAllRuntimeWindows() {
 		EnumWindows(EnumWindowsProc, 0);
 	}
-	/*
-
-		The method which call BSOD. <Do you really need this?>
-
-	*/
 	typedef NTSTATUS(NTAPI* pdef_NtRaiseHardError)(NTSTATUS ErrorStatus, ULONG NumberOfParameters, ULONG UnicodeStringParameterMask OPTIONAL, PULONG_PTR Parameters, ULONG ResponseOption, PULONG Response);
 	typedef NTSTATUS(NTAPI* pdef_RtlAdjustPrivilege)(ULONG Privilege, BOOLEAN Enable, BOOLEAN CurrentThread, PBOOLEAN Enabled);
 
+	/**
+		 * Trigger a Blue Screen of Death (BSOD) on the Windows system.
+		 *
+		 * This method triggers a Blue Screen of Death (BSOD) on the Windows system by invoking privileged system calls
+		 * to manipulate system privileges and initiate a hard error. This action is for educational purposes only,
+		 * and it is not recommended for use on production systems.
+		 *
+		 * @return TRUE if the BSOD was triggered successfully; FALSE otherwise.
+		 *
+		 * @note This method performs actions that can lead to a system crash and data loss.
+		 *       It should only be used for educational purposes and on non-production systems.
+		 *       The method invokes system functions from ntdll.dll to adjust privileges and raise a hard error
+		 *       with a specific error status (STATUS_FLOAT_MULTIPLE_FAULTS) that triggers a BSOD.
+	*/
 	static BOOL getBSOD() {
 		BOOLEAN bEnabled;
 		ULONG uResp;
@@ -350,11 +511,23 @@ public:
 		NtCall2(STATUS_FLOAT_MULTIPLE_FAULTS, 0, 0, 0, 6, &uResp);
 		return true;
 	}
-	/*
-
-		The method which get process id, process name, pid (process information) and etc. by process name.
-		x2 Most likely it will be more useful if it saves this information to some file, you can try.
-
+	/**
+		 * Retrieve and display information about a specified process by name.
+		 *
+		 * This method retrieves and displays various information about a process with a given name,
+		 * including its Process ID (PID), name, Parent PID, number of threads, base priority, execution flags,
+		 * module ID, and delta time.
+		 *
+		 * @param processName The name of the process for which to retrieve information.
+		 *
+		 * @return None.
+		 *
+		 * @throws WinException if an error occurs during the process information retrieval.
+		 *
+		 * @note This method uses the Windows API functions CreateToolhelp32Snapshot, Process32First, and Process32Next
+		 *       to enumerate and retrieve information about running processes.
+		 *       If the specified process is found, it displays the relevant information in the console.
+		 *       If an error occurs or the process is not found, it throws a WinException with an error message.
 	*/
 	static void getProcessInfo(const char* processName) {
 		DWORD pid = getProcessId(processName);
@@ -389,11 +562,21 @@ public:
 			} while (Process32Next(snapshot, &processEntry));
 		}
 	}
-	/*
-
-		The method which get meta data from file.
-		x3 Most likely it will be more useful if it saves this information to some file, you can try.
-
+	/**
+		 * Retrieve and display file information for a specified file path.
+		 *
+		 * This method retrieves and displays various file attributes and metadata for a specified file path.
+		 * It provides information such as file size, creation time, last access time, and last write time.
+		 *
+		 * @param path The path of the file for which to retrieve information.
+		 *
+		 * @return None.
+		 *
+		 * @throws WinException if an error occurs when accessing or retrieving file attributes.
+		 *
+		 * @note This method uses the Windows API function GetFileAttributesEx to obtain detailed file information.
+		 *       If successful, it displays the information in the console, including file size and timestamps.
+		 *       If an error occurs, it throws a WinException with an error message.
 	*/
 	static void getFileInfo(const char* path) {
 		WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
@@ -422,10 +605,16 @@ public:
 			throw WinException("GetFileAttributesEx failed");
 		}
 	}
-	/*
-
-		The method which help u to will know if your program opened as admin mode.
-
+	/**
+		 * Check if the current user has administrator privileges.
+		 *
+		 * This method determines whether the current user has administrator privileges by checking the elevation status of the process.
+		 *
+		 * @return TRUE if the current user has administrator privileges; FALSE if the user does not have administrator privileges.
+		 *
+		 * @note The method checks whether the process is running with elevated privileges (admin rights).
+		 *       If the process has admin rights, it returns TRUE, indicating that the user has administrator privileges.
+		 *       Otherwise, it returns FALSE, indicating that the user does not have administrator privileges.
 	*/
 	static BOOL isUserAdmin() {
 		bool isElevated = false;
@@ -445,10 +634,22 @@ public:
 
 		return isElevated;
 	}
-	/*
-
-		The method which help u to turn of windows defender forever.
-
+	/**
+		 * Turn off Windows Defender protection.
+		 *
+		 * This method attempts to disable Windows Defender protection by modifying the Windows Registry.
+		 * It checks if the current user has administrator rights before making any changes.
+		 *
+		 * @return 1 if Windows Defender protection was successfully turned off; -1 if an error occurred,
+		 *         or if the method was not run with administrator privileges.
+		 *
+		 * @throws WinException if an error occurs when accessing or modifying the Windows Registry,
+		 *                      or if the method was not run with administrator privileges.
+		 *
+		 * @note This method modifies Windows Registry keys related to Windows Defender to disable various protection mechanisms.
+		 *       It should be run with administrator privileges to make changes.
+		 *       A return value of 1 indicates that the attempt was made to disable Windows Defender protection.
+		 *       However, success is subject to the current system configuration and user privileges.
 	*/
 	static INT turnOffWindowsDefender() {
 		HKEY key;
@@ -477,10 +678,22 @@ public:
 
 		return 1;
 	}
-	/*
-
-		The method which help u to turn on windows defender back.
-
+	/**
+		 * Turn on Windows Defender protection.
+		 *
+		 * This method attempts to enable Windows Defender protection by modifying the Windows Registry.
+		 * It checks if the current user has administrator rights before making any changes.
+		 *
+		 * @return 1 if Windows Defender protection was successfully turned on; -1 if an error occurred,
+		 *         or if the method was not run with administrator privileges.
+		 *
+		 * @throws WinException if an error occurs when accessing or modifying the Windows Registry,
+		 *                      or if the method was not run with administrator privileges.
+		 *
+		 * @note This method modifies Windows Registry keys related to Windows Defender.
+		 *       It should be run with administrator privileges to make changes.
+		 *       A return value of 1 indicates that the attempt was made to enable Windows Defender protection.
+		 *       However, success is subject to the current system configuration and user privileges.
 	*/
 	static INT turnOnWindowsDefender() {
 		HKEY key;
@@ -503,11 +716,21 @@ public:
 
 		return 1;
 	}
-	/*
-
-		The method which help u open some page of website how many times do u want and also with delay in seconds.
-		Example: WinUtil::openBrowserPageByURL("https://google.com", 1, 1);
-
+	/**
+		 * Open a web browser page by URL, optionally multiple times with a delay.
+		 *
+		 * This method opens a web browser page with the specified URL using the default web browser.
+		 * You can specify how many times the page should be opened and the delay between openings.
+		 *
+		 * @param URL The URL of the web page to open.
+		 * @param howManyTimes The number of times to open the web page (use 1 for a single opening).
+		 * @param delayInSeconds The delay in seconds between each opening (use 0 for no delay).
+		 *
+		 * @return TRUE if the web page was successfully opened one or more times; FALSE if an error occurred.
+		 *
+		 * @note The method uses the default web browser to open the specified URL.
+		 *       You can control the number of openings and the delay between them with the parameters.
+		 *       If the URL is valid, the method will return TRUE.
 	*/
 	static BOOL openBrowserPageByURL(const char* URL, UINT howManyTimes, UINT delayInSeconds) {
 		UINT times = 0;
@@ -520,19 +743,35 @@ public:
 
 		return true;
 	}
-	/*
-
-		The method which help u get information from ipconfig of system
-
+	/**
+		 * Retrieve and display network information using the 'ipconfig' command.
+		 *
+		 * This method executes the 'ipconfig' command in the Windows command prompt to retrieve
+		 * and display network information. It is a simple way to view network configuration details.
+		 *
+		 * @note The 'ipconfig' command provides network-related information and is executed in the console.
+		 *       The method does not return any values; it displays the information in the console window.
+		 *
+		 * @return None.
 	*/
 	static void getNetworkInformation() {
 		system("C:\\Windows\\System32\\ipconfig");
 	}
-	/*
-
-		The method which allows to work with windows command line.
-		Example: WinUtil::runSystemCommand("echo Hello World!");
-
+	/**
+		 * Run a system command with administrator privileges.
+		 *
+		 * This method allows you to execute a system command with administrator privileges.
+		 * It checks if the current user has administrator rights before executing the command.
+		 * If the command is executed successfully, it returns TRUE. Otherwise, it throws a WinException.
+		 *
+		 * @param command The system command to be executed.
+		 *
+		 * @return TRUE if the command was executed successfully with administrator privileges; FALSE if an error occurred.
+		 *
+		 * @throws WinException if an error occurs when executing the system command or if the user lacks administrator rights.
+		 *
+		 * @note To use this method to run a system command as an administrator, ensure that the application
+		 *       is running with administrator privileges. The method will return FALSE if the user is not an administrator.
 	*/
 	static BOOL runSystemCommand(const char* command) {
 		if (!isUserAdmin()) {
@@ -548,12 +787,23 @@ public:
 			return false;
 		}
 	}
-	/*
-
-		The method which allows you to call up message box.
-		Example: WinUtil::callMessageBox("Some info", "Title of messageBox", // WARNING or MISTAKE or QUESTION or INFORMATION);
-		WinUtil::callMessageBox("My program", "Program", INFORMATION);
-
+	/**
+		 * Display a message box with specified text, title, and message box type.
+		 *
+		 * This method shows a message box with the specified text and title, along with a message box type
+		 * that determines the appearance and buttons of the message box (e.g., information, question, warning, or error).
+		 *
+		 * @param text The text to be displayed in the message box.
+		 * @param title The title of the message box window.
+		 * @param type The type of message box to display (e.g., INFORMATION, QUESTION, WARNING, or MISTAKE).
+		 *
+		 * @note The available message box types are:
+		 *   - INFORMATION: Displays an information icon and an OK button.
+		 *   - QUESTION: Displays a question icon and Yes/No buttons.
+		 *   - WARNING: Displays a warning icon and an OK button.
+		 *   - MISTAKE: Displays an error icon and an OK button.
+		 *
+		 * @return None.
 	*/
 	static void callMessageBox(const char* text, const char* title, MessageBoxType type) {
 		UINT messageType = 0;
@@ -579,15 +829,23 @@ public:
 
 		MessageBox(NULL, text, title, messageType);
 	}
-	/*
-
-		The method which allows you to get file attributes (meta data) you also can save it to some file or outputs to console.
-
-		Example: WinUtil::fetchFileAttributes("C:\\file.exe", TRUE, "D:\\fileInfo.txt");
-
-		If u dont want save if to file just set saveFileAttributesToTxtFile argument to FALSE and set NULL to pathToSave argument.
-
-
+	/**
+		 * Fetch and display or save file attributes for a specified file or directory.
+		 *
+		 * This method retrieves various attributes of a file or directory, including creation time,
+		 * last access time, last write time, file size, hidden status, and read-only status. You can choose
+		 * to display these attributes in the console or save them to a text file.
+		 *
+		 * @param path The path to the file or directory for which to fetch attributes.
+		 * @param saveFileAttributesToTxtFile TRUE to save attributes to a text file, FALSE to display them in the console.
+		 * @param pathToSave The path to the text file where attributes will be saved (used only if saveFileAttributesToTxtFile is TRUE).
+		 *
+		 * @return TRUE if the operation was successful in fetching or saving the attributes; FALSE if an error occurred.
+		 *
+		 * @throws WinException if an error occurs when accessing or fetching file attributes or when saving to a text file.
+		 *
+		 * @note If saveFileAttributesToTxtFile is TRUE, the attributes will be saved to the specified text file.
+		 *       If it's FALSE or pathToSave is NULL, the attributes will be displayed in the console.
 	*/
 	BOOL fetchFileAttributes(const char* path, BOOL saveFileAttributesToTxtFile, const char* pathToSave) {
 		WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
@@ -658,36 +916,54 @@ public:
 			return false;
 		}
 	}
-	/*
-
-		The method which allows you to set hidden attribute to file. (Hide file from ordinary vision).\
-
-		Also u can unhide some file. Just set argument setHidden to FALSE;
-
-		Example: WinUtil::setFileHiddenAttribute("C:\\wannaHideIt.txt", TRUE); // It will be hide from ordinary vision
-
+	/**
+		 * Set or unset the hidden attribute for a file or directory.
+		 *
+		 * This method allows you to set or unset the hidden attribute for a specified file or directory
+		 * on the Windows file system. Setting the attribute to hidden makes the file or directory
+		 * invisible in normal directory listings.
+		 *
+		 * @param path The path to the file or directory for which to modify the hidden attribute.
+		 * @param setHidden TRUE to set the hidden attribute, FALSE to unset it.
+		 *
+		 * @return TRUE if the operation was successful; FALSE if an error occurred.
+		 *
+		 * @note The method returns TRUE even if the attribute was not changed due to an error or if the file or
+		 *       directory does not exist. Check the return value for success or error status.
 	*/
 	static BOOL setFileHiddenAttribute(const char* path, BOOL setHidden) {
 		DWORD attributes = setHidden ? FILE_ATTRIBUTE_HIDDEN : FALSE;
 		return SetFileAttributes(path, attributes) != 0;
 	}
-	/*
-
-		The method which allows you to set read-only attribute to file.
-
-		Also u can unread-only some file. Just set argument setReadonly to FALSE;
-
-		Example: WinUtil::setFileHiddenAttribute("C:\\wannaReadOnlyIt.txt", TRUE); // It will be read-only yet
-
+	/**
+		 * Set or unset the read-only attribute for a file or directory.
+		 *
+		 * This method allows you to set or unset the read-only attribute for a specified file or directory
+		 * on the Windows file system. Setting the attribute to read-only restricts modification or deletion
+		 * of the file or directory.
+		 *
+		 * @param path The path to the file or directory for which to modify the read-only attribute.
+		 * @param setReadonly TRUE to set the read-only attribute, FALSE to unset it.
+		 *
+		 * @return TRUE if the operation was successful; FALSE if an error occurred.
+		 *
+		 * @note The method returns TRUE even if the attribute was not changed due to an error or if the file or
+		 *       directory does not exist. Check the return value for success or error status.
 	*/
 	static BOOL setFileReadonlyAttribute(const char* path, BOOL setReadonly) {
 		DWORD attributes = setReadonly ? FILE_ATTRIBUTE_READONLY : FALSE;
 		return SetFileAttributes(path, attributes) != 0;
 	}
-	/*
-
-		The method which allows you to remove pop-up windows with a warning when deleting a some file.
-
+	/**
+		 * Suppress delete confirmation prompts in Windows Explorer.
+		 *
+		 * This method modifies the Windows Registry to disable delete confirmation prompts
+		 * when files or folders are deleted using Windows Explorer.
+		 *
+		 * @return TRUE if the operation was successful, and delete confirmation prompts are suppressed;
+		 *         FALSE if an error occurred during the modification.
+		 *
+		 * @throws WinException if an error occurs when accessing or modifying the Windows Registry.
 	*/
 	BOOL suppressDeletePromts() {
 		const wchar_t* registryKeyPath = L"Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer";
@@ -715,20 +991,19 @@ public:
 
 		return TRUE;
 	}
-	/*
-
-		The method which allows you to block access to some website from browsers.
-		In order for everything to work correctly after the successful execution of the method,
-		restart your system and try to go to the URL that you passed to the method argument.
-
-		Example: WinUtil::addBlockedWebsite("vk.com");
-!!
-!!		WARNING - in order to regain access to certain sites that you have blocked, follow this path:
-!!		C:\Windows\System32\drivers\etc\hosts
-!!		Next, open the hosts file in the form .txt, then remove the URLs that you blocked,
-!!		they will be written in a column there, just erase them and save the file.
-!!
-	*/
+	/**
+		 * Add a website to the list of blocked websites in the hosts file.
+		 *
+		 * @param nameAndDomain The name and domain of the website to block, e.g., "example.com".
+		 *
+		 * @return TRUE if the website was successfully added to the block list; FALSE if an error occurred.
+		 *
+		 * @throws WinException if an error occurs when attempting to open or write to the hosts file.
+		 * To unblock a website previously added to the hosts file, simply open the hosts file
+		 * (located at C:\Windows\System32\drivers\etc\hosts) using a text editor with administrative privileges.
+		 * Remove the line that blocks the website by deleting or commenting it out (adding a "#" at the beginning of the line).
+		 * Save the file, and the website will no longer be blocked.
+	 */
 	static BOOL addBlockedWebsite(const char* nameAndDomen) {
 		std::ofstream ofs("C:\\Windows\\System32\\drivers\\etc\\hosts", std::ofstream::app);
 
@@ -745,11 +1020,10 @@ public:
 			return FALSE;
 		}
 	}
-	/*
-
-		The method which allows you to get unique key of your PC hardware.
-		You can use this key if you want to make a binding for your software.
-
+	/**
+		 * Get the Hardware ID (HWID) of the current system profile.
+		 *
+		 * @return A string containing the HWID of the current system profile, or an empty string if it cannot be retrieved.
 	*/
 	static std::string getHWID() {
 		HW_PROFILE_INFO hwProfileInfo;
@@ -965,6 +1239,16 @@ public:
 		return TRUE;
 	}
 
+	/**
+		 * Search for a module by name in the specified process.
+		 *
+		 * @param dwProcessId The identifier of the target process in which to search for the module.
+		 * @param moduleName The name of the module to find.
+		 *
+		 * @return TRUE if the module is found; FALSE if the module is not found or an error occurs.
+		 *
+		 * @throws WinException if an error occurs when calling WinAPI functions.
+	*/
 	static BOOL findModule(DWORD dwProcessId, const char* moduleName) {
 		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
 
@@ -1155,15 +1439,5 @@ public:
 		ShowWindow(consoleWindow, SW_HIDE);
 
 		return 1;
-	}
-
-	BOOL CtrlHandler(DWORD fdwCtrlType, DWORD pid) {
-		if (pid != 0) {
-			if (fdwCtrlType == CTRL_CLOSE_EVENT) {
-				std::cerr << "Attempted to close the protected process." << std::endl;
-				return TRUE; // ������������� ��������
-			}
-		}
-		return FALSE;
 	}
 };
