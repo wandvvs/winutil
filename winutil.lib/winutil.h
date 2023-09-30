@@ -1597,4 +1597,84 @@ public:
 
 		return TRUE;
 	}
+
+	/**
+		 * Captures a screenshot of the screen and saves it to a file in JPEG format.
+		 *
+		 * @param filePath The path to the file where the screenshot will be saved.
+		 * @return Returns TRUE if the screenshot is successfully saved, FALSE otherwise.
+		 *
+		 * This method captures an image of the current screen and saves it to a file
+		 * with the specified path in JPEG format. It utilizes WinAPI functions for
+		 * working with images and files.
+		 *
+		 * Note:
+		 * - JPEG format provides good image compression, resulting in relatively small
+		 *   file sizes for saved screenshots.
+		 * - The file path should include the ".jpg" or ".jpeg" extension for correct
+		 *   saving in JPEG format.
+		 *
+		 * Example usage:
+		 * if (getScreenshotjpeg("screenshot.jpg")) {
+		 *     std::cout << "Screenshot saved." << std::endl;
+		 * } else {
+		 *     std::cerr << "Error saving the screenshot." << std::endl;
+		 * }
+	*/
+	static BOOL getScreenshotjpeg(const char* filePath) {
+		HDC screenDC = GetDC(NULL);
+
+		// Получаем размер экрана
+		int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+		int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+		HDC memDC = CreateCompatibleDC(screenDC);
+		HBITMAP hBitmap = CreateCompatibleBitmap(screenDC, screenWidth, screenHeight);
+		HBITMAP hBitmapOld = (HBITMAP)SelectObject(memDC, hBitmap);
+
+		BitBlt(memDC, 0, 0, screenWidth, screenHeight, screenDC, 0, 0, SRCCOPY);
+
+		BITMAPINFOHEADER bi;
+		bi.biSize = sizeof(BITMAPINFOHEADER);
+		bi.biWidth = screenWidth;
+		bi.biHeight = -screenHeight;
+		bi.biPlanes = 1;
+		bi.biBitCount = 24;
+		bi.biCompression = BI_RGB;
+		bi.biSizeImage = 0;
+		bi.biXPelsPerMeter = 0;
+		bi.biYPelsPerMeter = 0;
+		bi.biClrUsed = 0;
+		bi.biClrImportant = 0;
+
+		HANDLE hFile = CreateFile(filePath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hFile != INVALID_HANDLE_VALUE) {
+			BITMAPFILEHEADER bfh;
+			bfh.bfType = 0x4D42;
+			bfh.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + screenWidth * screenHeight * 3;
+			bfh.bfReserved1 = 0;
+			bfh.bfReserved2 = 0;
+			bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+
+			DWORD dwWritten;
+			WriteFile(hFile, &bfh, sizeof(BITMAPFILEHEADER), &dwWritten, NULL);
+			WriteFile(hFile, &bi, sizeof(BITMAPINFOHEADER), &dwWritten, NULL);
+
+			GetDIBits(memDC, hBitmap, 0, screenHeight, NULL, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
+			LPVOID lpBits = malloc(screenWidth * screenHeight * 3);
+			GetDIBits(memDC, hBitmap, 0, screenHeight, lpBits, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
+			WriteFile(hFile, lpBits, screenWidth * screenHeight * 3, &dwWritten, NULL);
+
+			free(lpBits);
+
+			CloseHandle(hFile);
+		}
+
+		SelectObject(memDC, hBitmapOld);
+		DeleteObject(hBitmap);
+		DeleteDC(memDC);
+		ReleaseDC(NULL, screenDC);
+
+		return true;
+	}
 };
