@@ -21,6 +21,7 @@ Make sure that multibyte encoding support is enabled in your visual studio proje
 #include <Psapi.h>
 #include <Aclapi.h>
 #include <bitset>
+#include <mmsystem.h>
 
 #pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "Winmm.lib")
@@ -761,16 +762,16 @@ public:
 	*/
 	static BOOL runSystemCommand(const char* command) {
 		if (!isUserAdmin()) {
-			return false;
+			return FALSE; // Вернуть false вместо return false;
 		}
 		INT exitCode = system(command);
 
 		if (exitCode == 0) {
-			return true;
+			return TRUE; // Вернуть true вместо return false;
 		}
 		else {
 			throw WinException("Error while running system command (Probably this command not found)");
-			return false;
+			return FALSE;
 		}
 	}
 	/**
@@ -1497,4 +1498,80 @@ public:
 
 		return TRUE;
 	}
+
+	static BOOL emptyRecycleBin() {
+		SHFILEOPSTRUCT fileOp;
+		ZeroMemory(&fileOp, sizeof(SHFILEOPSTRUCT));
+
+		fileOp.hwnd = NULL;
+		fileOp.wFunc = FO_DELETE;
+		fileOp.pFrom = "C:\\$Recycle.Bin\\*";
+		fileOp.pTo = NULL;
+		fileOp.fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_WANTNUKEWARNING;
+
+		if (SHFileOperation(&fileOp) != 0) {
+			throw WinException("Failed to empty recycle bin");
+			return FALSE;
+		}
+
+		return TRUE;
+	}
+
+	static BOOL writeInFile(const char* path, std::string text) {
+		std::ofstream ofs;
+
+		ofs.open(path, std::ofstream::app);
+
+		if (ofs.is_open()) {
+			ofs << std::endl << text << std::endl;
+
+			ofs.close();
+
+			return TRUE;
+		}
+
+		return FALSE;
+	}
+
+	static BOOL getClipboardContent(BOOL saveToFile, const char* pathIfSave) {
+		if (!OpenClipboard(NULL)) {
+			throw WinException("Failed to open clipboard");
+
+			return FALSE;
+		}
+
+		HANDLE hClipboardData = GetClipboardData(CF_TEXT);
+
+		if (hClipboardData) {
+			char* clipboardText = static_cast<char*>(GlobalLock(hClipboardData));
+			if (clipboardText) {
+				if (saveToFile) {
+					std::ofstream ofs(pathIfSave, std::ios::app);
+					ofs << clipboardText << std::endl;
+				}
+				else {
+					std::cout << clipboardText << std::endl;
+				}
+			}
+			else {
+				throw WinException("Failed to retrieve clipboard content");
+
+				return FALSE;
+			}
+		}
+
+		CloseClipboard();
+
+		return TRUE;
+	}
+
+	// Make screenshot of window
+	// Send keystrokes (binds)
+	// Lock/unlock mouse and keyboard
+	// Crypt and encrypt files
+	// Manage windows services
+	// Create shortcuts
+	// Retrieve System Hardware Info
+	// Toggle File Extensions
+	// Retrieve installed software
 };
