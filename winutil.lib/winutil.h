@@ -27,10 +27,12 @@ Make sure that multibyte encoding support is enabled in your visual studio proje
 #pragma warning(disable : 4996)
 
 /**
+* 
  * Enumeration for MessageBox Types.
  *
  * This enum defines different types of messages that can be displayed using the MessageBox.
  * It is used to specify the type of message box and the corresponding icon to display.
+ * 
  */
 enum MessageBoxType {
 	INFORMATION, ///< Informational message with an information icon.
@@ -1425,6 +1427,18 @@ public:
 		return 1;
 	}
 
+	/**
+		 * Converts the contents of a text file to binary format and writes the result to another file.
+		 *
+		 * This function reads a text file specified by `inputFile`, converts its contents to binary,
+		 * and writes the binary data to an output file specified by `outputFile`. Each character in
+		 * the input file is converted to an 8-bit binary representation.
+		 *
+		 * @param inputFile  The path to the input text file to be converted.
+		 * @param outputFile The path to the output binary file where the converted data will be written.
+		 * @return           Returns `TRUE` if the conversion and writing were successful; otherwise, `FALSE`.
+		 *                   Throws a `WinException` if the input or output file cannot be opened.
+	*/
 	static BOOL convertToBinary(const std::string& inputFile, const std::string& outputFile) {
 		std::ifstream inFile(inputFile);
 		std::ofstream outFile(outputFile);
@@ -1448,6 +1462,18 @@ public:
 		return TRUE;
 	}
 
+	/**
+		 * Converts the contents of a binary file to text format and writes the result to another file.
+		 *
+		 * This function reads a binary file specified by `inputFile`, converts its contents to text,
+		 * and writes the text data to an output file specified by `outputFile`. The binary data is
+		 * expected to represent characters where each 8 bits correspond to a character.
+		 *
+		 * @param inputFile  The path to the input binary file to be converted.
+		 * @param outputFile The path to the output text file where the converted data will be written.
+		 * @return           Returns `TRUE` if the conversion and writing were successful; otherwise, `FALSE`.
+		 *                   Throws a `WinException` if the input or output file cannot be opened.
+	 */
 	static BOOL convertFromBinary(const std::string& inputFile, const std::string& outputFile) {
 		std::ifstream inFile(inputFile, std::ios::in | std::ios::binary);
 		std::ofstream outFile(outputFile);
