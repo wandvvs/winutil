@@ -128,7 +128,7 @@ int main() {
 	}
 }
 ```
-- ```from.txt``` (Try convert "Hello world!" to a binary code
+- ```from.txt``` (The source file with which we will translate into binary form)
 ![from](https://media.discordapp.net/attachments/812000275698679818/1157635731834028032/image.png?ex=651953ca&is=6518024a&hm=d23708ca1ce2d3ad18cae1455194ebaecf5392e4a74691f8052ef4d60f8884a9&=)
 - ```to.txt``` (The result of converting into binary code)
 ![to](https://media.discordapp.net/attachments/812000275698679818/1157636109333962823/image.png?ex=65195424&is=651802a4&hm=e98f22828ca8656368ba453fd7aa01198e68bd3aa73425de7e8aef987faf6f87&=&width=1451&height=364)
