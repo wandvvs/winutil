@@ -52,6 +52,9 @@ winutil.h - independent abstract library to build your applications with prepare
 - Delete file
 - Delete directory
 - Set desktop wallpaper
+- Empty recycle bin
+- Write to file
+- Get clipboard content
 
 ## Examples
 - Get the full path to the executable file by its name
