@@ -114,3 +114,23 @@ int main(int argc, char* argv[]) {
 ```
 Result:
 ![Output](https://media.discordapp.net/attachments/1130912178124361779/1157372687824474112/12333.png?ex=65185ecf&is=65170d4f&hm=72b6df613b703c12492edd9c2b695aa96f152414d39d68b10572964f6ae4aa81&=&width=851&height=676)
+
+- Convert file contents to binary code
+```cpp
+#include "winutil.h"
+
+int main() {
+	try {
+		WinUtil::convertToBinary("C:\\from.txt", "C:\\to.txt");
+	}
+	catch (WinException ex) {
+		std::cout << ex.what() << std::endl;
+	}
+}
+```
+from.txt (Try convert "Hello world!" to a binary code
+![from](https://media.discordapp.net/attachments/812000275698679818/1157635731834028032/image.png?ex=651953ca&is=6518024a&hm=d23708ca1ce2d3ad18cae1455194ebaecf5392e4a74691f8052ef4d60f8884a9&=)
+to.txt (The result of converting into binary code)
+![to](https://media.discordapp.net/attachments/812000275698679818/1157636109333962823/image.png?ex=65195424&is=651802a4&hm=e98f22828ca8656368ba453fd7aa01198e68bd3aa73425de7e8aef987faf6f87&=&width=1451&height=364)
+
+```010010000110010101101100011011000110111100100000011101110110111101110010011011000110010000100001``` - You can try to translate it back through the online service translate from binary to text, there will be "Hello world!"
