@@ -16,6 +16,8 @@ winutil.h - independent abstract library to build your applications with prepare
 ## Features
 - Shutdown system
 - Restart system
+- Play sound
+- Hide console at startup
 - Get process identifier by process name
 - Get all runtime windows now
 - Get BSOD
