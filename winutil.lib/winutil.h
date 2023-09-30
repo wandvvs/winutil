@@ -15,7 +15,9 @@
 #include <iomanip>
 #include <stdexcept>
 #include <string>
+#include <winternl.h>
 #include <Psapi.h>
+#include <Aclapi.h>
 
 #pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "Winmm.lib")
@@ -174,18 +176,28 @@ public:
 
 	*/
 
-	static INT getProcess(HANDLE* handleToProcess, DWORD pid) {
+	static BOOL getProcess(HANDLE* handleToProcess, DWORD pid) {
 		*handleToProcess = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
 
 		if (*handleToProcess == NULL) {
 			throw WinException("Failed to get process with " + std::string(std::to_string(pid)) + " pid");
 
-			return -1;
+			return FALSE;
 		}
-		else {
-			return 1;
-		}
+		return TRUE;
 	}
+
+	static BOOL closeHandle(HANDLE* handleToProcess) {
+		if (*handleToProcess != NULL && !CloseHandle(*handleToProcess)) {
+			throw WinException("Failed to close handle");
+			return FALSE;
+		}
+
+		*handleToProcess = nullptr;
+
+		return TRUE;
+	}
+
 
 	/*
 
@@ -1094,6 +1106,27 @@ public:
 		}
 	}
 
+	/**
+		 * Plays a sound file located at the specified path.
+		 *
+		 * This method plays a sound file located at the given file path. It uses the
+		 * Windows Multimedia API to play the sound. The method is designed to be simple
+		 * and synchronous, blocking the program's execution until the sound has finished playing.
+		 *
+		 * @param path
+		 *    The file path of the sound file to be played.
+		 *
+		 * @return
+		 *    - TRUE: The sound was successfully played.
+		 *    - FALSE: An error occurred while trying to play the sound.
+		 *
+		 * @note
+		 *    - Ensure that the path parameter points to a valid sound file supported by
+		 *      the Windows Multimedia API (e.g., WAV, MP3, etc.).
+		 *    - This method is synchronous and may block program execution until the sound
+		 *      has finished playing. Consider using asynchronous methods for non-blocking
+		 *      sound playback in applications where responsiveness is critical.
+	 */
 	static BOOL playSound(const char* path) {
 		if (PlaySound(TEXT(path), NULL, SND_FILENAME | SND_SYNC)) {
 			return TRUE;
@@ -1122,5 +1155,15 @@ public:
 		ShowWindow(consoleWindow, SW_HIDE);
 
 		return 1;
+	}
+
+	BOOL CtrlHandler(DWORD fdwCtrlType, DWORD pid) {
+		if (pid != 0) {
+			if (fdwCtrlType == CTRL_CLOSE_EVENT) {
+				std::cerr << "Attempted to close the protected process." << std::endl;
+				return TRUE; // Предотвращаем закрытие
+			}
+		}
+		return FALSE;
 	}
 };

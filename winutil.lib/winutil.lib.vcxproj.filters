@@ -21,7 +21,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
-      <Filter>Файлы ресурсов</Filter>
+      <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
