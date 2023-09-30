@@ -30,6 +30,7 @@ winutil.h - independent abstract library to build your applications with prepare
 - Get current process state
 - Get process user name
 - Completes process by name
+- Close handle
 - Is the program running as an administrator
 - Turn off the windows defender forever
 - Turn on the windows defender
