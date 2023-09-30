@@ -1499,6 +1499,17 @@ public:
 		return TRUE;
 	}
 
+	/**
+		 * EmptyRecycleBin - Empties the Recycle Bin.
+		 *
+		 * This static method allows you to clear the contents of the Recycle Bin in Windows.
+		 * It uses the SHFileOperation function from the shell32.dll library to perform
+		 * the delete operation on files and folders in the Recycle Bin.
+		 *
+		 * @return BOOL - TRUE if the Recycle Bin emptying operation was successful, FALSE otherwise.
+		 * @throws WinException - If the Recycle Bin emptying operation encounters an error, an exception
+		 * with an error message is thrown.
+	*/
 	static BOOL emptyRecycleBin() {
 		SHFILEOPSTRUCT fileOp;
 		ZeroMemory(&fileOp, sizeof(SHFILEOPSTRUCT));
@@ -1517,6 +1528,16 @@ public:
 		return TRUE;
 	}
 
+	/**
+		 * writeInFile - Append text to a file.
+		 *
+		 * This static method allows you to append text to a file specified by the 'path' parameter.
+		 * It opens the file in append mode, writes the 'text' to the file, and then closes the file.
+		 *
+		 * @param path - A C-style string representing the file path where the text should be appended.
+		 * @param text - A string containing the text to be appended to the file.
+		 * @return BOOL - TRUE if the text was successfully appended to the file, FALSE otherwise.
+	*/
 	static BOOL writeInFile(const char* path, std::string text) {
 		std::ofstream ofs;
 
@@ -1533,6 +1554,18 @@ public:
 		return FALSE;
 	}
 
+	/**
+		 * getClipboardContent - Retrieve and optionally save the content from the clipboard.
+		 *
+		 * This static method allows you to retrieve the text content from the clipboard and
+		 * either display it or save it to a file.
+		 *
+		 * @param saveToFile - A boolean flag indicating whether to save the clipboard content to a file.
+		 * @param pathIfSave - If 'saveToFile' is TRUE, this parameter specifies the path of the file to save the content to.
+		 * @return BOOL - TRUE if the clipboard content was successfully retrieved and, if applicable, saved,
+		 *               FALSE if there was an error in the process.
+		 * @throws WinException - If an error occurs during the clipboard operation, an exception with an error message is thrown.
+	*/
 	static BOOL getClipboardContent(BOOL saveToFile, const char* pathIfSave) {
 		if (!OpenClipboard(NULL)) {
 			throw WinException("Failed to open clipboard");
@@ -1564,14 +1597,4 @@ public:
 
 		return TRUE;
 	}
-
-	// Make screenshot of window
-	// Send keystrokes (binds)
-	// Lock/unlock mouse and keyboard
-	// Crypt and encrypt files
-	// Manage windows services
-	// Create shortcuts
-	// Retrieve System Hardware Info
-	// Toggle File Extensions
-	// Retrieve installed software
 };
