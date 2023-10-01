@@ -1624,7 +1624,6 @@ public:
 	static BOOL getScreenshotjpeg(const char* filePath) {
 		HDC screenDC = GetDC(NULL);
 
-		// Получаем размер экрана
 		int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 		int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
