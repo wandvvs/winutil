@@ -1,6 +1,6 @@
 # winutil
 
-winutil.h - independent abstract library to build your applications with prepared methods to work with Windows 10.
+winutil.h - independent class to build your applications with prepared methods to work with Windows 10.
 
 ## Getting Started
 
