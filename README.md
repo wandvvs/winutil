@@ -1,4 +1,4 @@
-# winutil
+# winutill
 
 winutil.h - independent class to build your applications with prepared methods to work with Windows 10.
 
