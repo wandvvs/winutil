@@ -1,6 +1,6 @@
 # winutil
 
-winutil.h - independent class to build your applications with prepared methods to work with Windows 10.
+winutil.h - feature-rich system control toolkit for software development written with windows api, all test were performed on Windows 10.
 
 ## Getting Started
 
